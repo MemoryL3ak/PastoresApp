@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileDown, Save, UserCircle2, Upload, X, ChevronDown, Search } from "lucide-react";
 import { getActiveTemplate } from "../credentialTemplatesStorage";
 import { generateCredentialPdf } from "../generateCredentialPdf";
-import { COUNTRIES } from "../lib/geography";
+import { COUNTRIES, getDocumentInfo } from "../lib/geography";
+import { useToast } from "../context/ToastContext";
 import DatePicker from "./DatePicker";
 
 /* ── Searchable combobox ───────────────────────────────────────── */
@@ -100,6 +101,7 @@ function SearchSelect({ value, onChange, options, placeholder = "Buscar..." }) {
 /* ── PastorForm ────────────────────────────────────────────────── */
 export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
   const isEdit = Boolean(pastor);
+  const { toast } = useToast();
 
   const [nombre, setNombre] = useState(pastor?.nombre ?? pastor?.fullName ?? "");
   const [rut, setRut] = useState(pastor?.rut ?? "");
@@ -121,6 +123,8 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
   const churchesByCountry = churchCountry
     ? churches.filter((c) => c.country === churchCountry)
     : churches;
+
+  const docInfo = getDocumentInfo(pastorCountry);
 
   const handleChurchCountryChange = (code) => {
     setChurchCountry(code);
@@ -158,6 +162,7 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
     };
     try {
       await generateCredentialPdf(tpl, pastorData);
+      toast("Credencial descargada correctamente");
     } catch (e) {
       console.error(e);
       alert("Ocurrió un error al generar la credencial.");
@@ -250,10 +255,10 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
           </div>
 
           <label className="field-label">
-            RUT
+            {docInfo.label}
             <input
               className="field-input"
-              placeholder="12.345.678-9"
+              placeholder={docInfo.placeholder}
               value={rut}
               onChange={(e) => setRut(e.target.value)}
             />

@@ -5,9 +5,9 @@ import { CallerProfile } from "../../plugins/auth.js";
 const createPastorSchema = z.object({
   first_name: z.string().min(2),
   last_name: z.string().min(2),
-  document_number: z.string().min(5).optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
+  document_number: z.string().min(5).nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
   church_id: z.string().min(1),
   pastoral_status: z.enum(["active", "inactive", "suspended"]).default("active"),
   degree_title: z.string().nullable().optional(),

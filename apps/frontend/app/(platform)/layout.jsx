@@ -3,8 +3,10 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { SWRConfig } from "swr";
 import PlatformShell from "@/modules/layout/PlatformShell";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
+import { ToastProvider } from "@/context/ToastContext";
 
 export default function PlatformLayout({ children }) {
   const { session, loading, mustChangePassword } = useAuth();
@@ -27,11 +29,15 @@ export default function PlatformLayout({ children }) {
   if (!session) return null;
 
   return (
-    <PlatformShell>
-      {mustChangePassword && (
-        <ChangePasswordModal onDone={() => window.location.reload()} />
-      )}
-      {children}
-    </PlatformShell>
+    <SWRConfig value={{ revalidateOnFocus: false, dedupingInterval: 5000 }}>
+      <ToastProvider>
+        <PlatformShell>
+          {mustChangePassword && (
+            <ChangePasswordModal onDone={() => window.location.reload()} />
+          )}
+          {children}
+        </PlatformShell>
+      </ToastProvider>
+    </SWRConfig>
   );
 }

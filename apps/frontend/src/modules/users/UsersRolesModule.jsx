@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, X, ShieldCheck, Globe, Eye, Pencil, KeyRound } from "lucide-react";
 import { api } from "@/lib/api";
+import { useUsers, invalidateUsers } from "@/lib/hooks";
+import { useToast } from "@/context/ToastContext";
 import { COUNTRIES } from "@/lib/geography";
 
 const ROLES = [
@@ -34,21 +36,17 @@ function Modal({ title, onClose, children }) {
 }
 
 export default function UsersRolesModule() {
-  const [users, setUsers]       = useState([]);
-  const [error, setError]       = useState("");
-  const [creating, setCreating] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);   // user object
-  const [resetUser, setResetUser]     = useState(null);   // user object
-  const [createForm, setCreateForm]   = useState(emptyCreate);
-  const [editForm, setEditForm]       = useState(emptyEdit);
-  const [newPassword, setNewPassword] = useState("");
+  const { users, isLoading, error: loadError } = useUsers();
+  const [mutateError, setMutateError]     = useState("");
+  const { toast } = useToast();
+  const [creating, setCreating]           = useState(false);
+  const [editingUser, setEditingUser]     = useState(null);
+  const [resetUser, setResetUser]         = useState(null);
+  const [createForm, setCreateForm]       = useState(emptyCreate);
+  const [editForm, setEditForm]           = useState(emptyEdit);
+  const [newPassword, setNewPassword]     = useState("");
 
-  const loadUsers = async () => {
-    try { setUsers(await api.listUsers()); setError(""); }
-    catch (err) { setError(err.message || "No se pudieron cargar usuarios"); }
-  };
-
-  useEffect(() => { void loadUsers(); }, []);
+  const error = mutateError || loadError;
 
   /* ── Create ── */
   const handleCreate = async (e) => {
@@ -60,8 +58,10 @@ export default function UsersRolesModule() {
       });
       setCreateForm(emptyCreate);
       setCreating(false);
-      await loadUsers();
-    } catch (err) { setError(err.message || "No se pudo crear el usuario"); }
+      invalidateUsers();
+      setMutateError("");
+      toast("Usuario creado correctamente");
+    } catch (err) { setMutateError(err.message || "No se pudo crear el usuario"); }
   };
 
   /* ── Edit ── */
@@ -74,7 +74,7 @@ export default function UsersRolesModule() {
       assigned_country: user.assigned_country ?? "",
       is_active:        user.is_active ?? true,
     });
-    setError("");
+    setMutateError("");
   };
 
   const handleEdit = async (e) => {
@@ -88,8 +88,10 @@ export default function UsersRolesModule() {
         is_active:        editForm.is_active,
       });
       setEditingUser(null);
-      await loadUsers();
-    } catch (err) { setError(err.message || "No se pudo guardar los cambios"); }
+      invalidateUsers();
+      setMutateError("");
+      toast("Usuario actualizado correctamente");
+    } catch (err) { setMutateError(err.message || "No se pudo guardar los cambios"); }
   };
 
   /* ── Reset password ── */
@@ -99,7 +101,9 @@ export default function UsersRolesModule() {
       await api.resetUserPassword(resetUser.id, newPassword);
       setResetUser(null);
       setNewPassword("");
-    } catch (err) { setError(err.message || "No se pudo resetear la contraseña"); }
+      setMutateError("");
+      toast("Contraseña reseteada correctamente");
+    } catch (err) { setMutateError(err.message || "No se pudo resetear la contraseña"); }
   };
 
   const setCreate = (k, v) => setCreateForm((p) => ({ ...p, [k]: v }));
@@ -118,7 +122,7 @@ export default function UsersRolesModule() {
         </div>
         <button type="button"
           className={creating ? "btn-secondary" : "btn-primary"}
-          onClick={() => { setCreating((v) => !v); setError(""); setCreateForm(emptyCreate); }}>
+          onClick={() => { setCreating((v) => !v); setMutateError(""); setCreateForm(emptyCreate); }}>
           {creating ? <><X size={15} /> Cerrar</> : <><Plus size={15} /> Nuevo usuario</>}
         </button>
       </div>
@@ -204,36 +208,44 @@ export default function UsersRolesModule() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
-              const country = COUNTRIES.find((c) => c.code === user.assigned_country);
-              return (
-                <tr key={user.id}>
-                  <td className="font-medium text-slate-900">{user.full_name}</td>
-                  <td className="text-slate-500 text-sm">{user.email ?? "—"}</td>
-                  <td className="text-slate-600 text-sm">{ROLE_MAP[user.role]?.label ?? user.role}</td>
-                  <td className="text-slate-500 text-sm">
-                    {user.role === "country_assigned" ? (country?.name ?? user.assigned_country ?? "Sin asignar") : "—"}
-                  </td>
-                  <td>
-                    <span className={user.is_active ? "badge-success" : "badge-muted"}>
-                      {user.is_active ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <button type="button" className="btn-link text-xs" onClick={() => openEdit(user)}>
-                        <Pencil size={12} className="inline mr-1" />Editar
-                      </button>
-                      <button type="button" className="btn-link text-xs text-amber-600 hover:text-amber-800"
-                        onClick={() => { setResetUser(user); setNewPassword(""); setError(""); }}>
-                        <KeyRound size={12} className="inline mr-1" />Clave
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {users.length === 0 && (
+            {isLoading && users.length === 0
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i}>
+                    {[140, 180, 100, 100, 60, 80].map((w, j) => (
+                      <td key={j}><div className="h-4 rounded bg-slate-200 animate-pulse" style={{ width: w }} /></td>
+                    ))}
+                  </tr>
+                ))
+              : users.map((user) => {
+                  const country = COUNTRIES.find((c) => c.code === user.assigned_country);
+                  return (
+                    <tr key={user.id}>
+                      <td className="font-medium text-slate-900">{user.full_name}</td>
+                      <td className="text-slate-500 text-sm">{user.email ?? "—"}</td>
+                      <td className="text-slate-600 text-sm">{ROLE_MAP[user.role]?.label ?? user.role}</td>
+                      <td className="text-slate-500 text-sm">
+                        {user.role === "country_assigned" ? (country?.name ?? user.assigned_country ?? "Sin asignar") : "—"}
+                      </td>
+                      <td>
+                        <span className={user.is_active ? "badge-success" : "badge-muted"}>
+                          {user.is_active ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <button type="button" className="btn-link text-xs" onClick={() => openEdit(user)}>
+                            <Pencil size={12} className="inline mr-1" />Editar
+                          </button>
+                          <button type="button" className="btn-link text-xs text-amber-600 hover:text-amber-800"
+                            onClick={() => { setResetUser(user); setNewPassword(""); setMutateError(""); }}>
+                            <KeyRound size={12} className="inline mr-1" />Clave
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+            {!isLoading && users.length === 0 && (
               <tr>
                 <td colSpan={6} className="py-12 text-center text-sm text-slate-400">
                   No hay usuarios registrados.

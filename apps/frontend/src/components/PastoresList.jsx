@@ -74,7 +74,7 @@ export default function PastoresList({
             <tr>
               <th style={{ width: 100 }}>Foto</th>
               <th>Nombre</th>
-              <th>RUT</th>
+              <th>Documento</th>
               <th>Iglesia</th>
               <th>Estado</th>
               {canEdit && <th style={{ width: 120 }}></th>}
@@ -96,7 +96,7 @@ export default function PastoresList({
                   )}
                 </td>
                 <td><span className="font-medium text-slate-900">{p.nombre}</span></td>
-                <td className="text-slate-500 font-mono text-xs">{p.rut || "—"}</td>
+                <td className="text-slate-500">{p.rut || "—"}</td>
                 <td>{p.iglesia || "—"}</td>
                 <td>
                   <span className={p.estado === "Activo" ? "badge-success" : p.estado === "Honorario" ? "badge-info" : "badge-muted"}>

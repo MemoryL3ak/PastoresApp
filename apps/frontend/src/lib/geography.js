@@ -30,6 +30,36 @@ export const COUNTRIES = [
   { code: "OTHER", name: "Otro" },
 ];
 
+/** Nombre del documento de identidad por país + placeholder de ejemplo */
+export const DOCUMENT_INFO = {
+  CL: { label: "RUT",       placeholder: "12.345.678-9"       },
+  AR: { label: "DNI",       placeholder: "12.345.678"          },
+  BO: { label: "CI",        placeholder: "1234567"             },
+  BR: { label: "CPF",       placeholder: "123.456.789-09"      },
+  CO: { label: "Cédula",    placeholder: "1.234.567.890"       },
+  CR: { label: "Cédula",    placeholder: "1-2345-6789"         },
+  CU: { label: "Carné",     placeholder: "12345678901"         },
+  DO: { label: "Cédula",    placeholder: "001-1234567-8"       },
+  EC: { label: "Cédula",    placeholder: "1234567890"          },
+  SV: { label: "DUI",       placeholder: "12345678-9"          },
+  GT: { label: "DPI",       placeholder: "1234 56789 0101"     },
+  HN: { label: "DNI",       placeholder: "1234-1234-12345"     },
+  MX: { label: "CURP",      placeholder: "XXXX000000XXXXXX00"  },
+  NI: { label: "Cédula",    placeholder: "001-123456-7890X"    },
+  PA: { label: "Cédula",    placeholder: "8-123-456"           },
+  PY: { label: "Cédula",    placeholder: "1.234.567"           },
+  PE: { label: "DNI",       placeholder: "12345678"            },
+  PR: { label: "SSN",       placeholder: "123-45-6789"         },
+  UY: { label: "CI",        placeholder: "1.234.567-8"         },
+  VE: { label: "Cédula",    placeholder: "V-12.345.678"        },
+  US: { label: "ID",        placeholder: ""                    },
+  ES: { label: "DNI",       placeholder: "12345678A"           },
+};
+
+export function getDocumentInfo(countryCode) {
+  return DOCUMENT_INFO[countryCode] ?? { label: "N° Documento", placeholder: "" };
+}
+
 // Regiones por país
 export const REGIONS = {
   CL: [
