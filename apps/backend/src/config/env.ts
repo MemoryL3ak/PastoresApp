@@ -8,7 +8,6 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(4000),
   APP_ORIGIN: z.string().url().default("http://localhost:5173"),
   SUPABASE_URL: z.string().url(),
-  SUPABASE_ANON_KEY: z.string().min(20),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20)
 });
 

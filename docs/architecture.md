@@ -10,9 +10,15 @@ Plataforma institucional para gestion pastoral con enfoque multi-tenant (por ins
 - `supabase/seed.sql`: datos iniciales no sensibles.
 - `infra`: carpeta reservada para IaC (Terraform/Pulumi) y despliegues.
 
+## Schemas de BD
+- `core`: perfiles, iglesias, pastores, institucion.
+- `events`: eventos, sesiones, asistencia.
+- `credentials`: plantillas y credenciales.
+- `reporting`: exportaciones y analitica.
+
 ## Principios
-- Multi-tenant por `institution_id` en todas las entidades de negocio.
-- Row Level Security habilitado en todas las tablas de dominio.
+- Diseno simplificado para operacion de una sola institucion.
+- Row Level Security opcional segun estrategia de acceso.
 - Backend sin acceso directo desde cliente al `service_role`.
 - IDs UUID y timestamps UTC.
 - Auditoria mediante eventos exportables y control de estados.

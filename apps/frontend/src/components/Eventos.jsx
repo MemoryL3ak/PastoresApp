@@ -1,55 +1,94 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Plus, Pencil, Calendar, X } from "lucide-react";
+import { api } from "../lib/api";
+import ConfirmDialog from "./ConfirmDialog";
+import DatePicker from "./DatePicker";
+import { useAuth } from "../context/AuthContext";
 
-const ESTADOS = ["Planeado", "Activo", "Finalizado", "Cancelado"];
+const ESTADOS = ["planned", "active", "completed", "cancelled"];
 
-export default function Events() {
-  // Datos de ejemplo para la maqueta
-  const [events, setEvents] = useState([
-    {
-      id: 1,
-      name: "Conferencia",
-      startDate: "20/11/2025",
-      endDate: "22/11/2025",
-      status: "Activo",
-    },
-    {
-      id: 2,
-      name: "Estudio",
-      startDate: "10/01/2026",
-      endDate: "12/01/2026",
-      status: "Planeado",
-    },
-  ]);
+const STATUS_BADGE = {
+  planned:   "badge-info",
+  active:    "badge-success",
+  completed: "badge-muted",
+  cancelled: "badge-danger",
+};
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null); // null = creando
-  const [form, setForm] = useState({
-    name: "",
-    startDate: "",
-    endDate: "",
-    status: "Planeado",
+const STATUS_LABEL = {
+  planned:   "Planificado",
+  active:    "Activo",
+  completed: "Completado",
+  cancelled: "Cancelado",
+};
+
+function toDateInput(value) {
+  if (!value) return "";
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function formatDate(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("es-CL", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
+}
+
+const EMPTY_FORM = { title: "", starts_at: "", ends_at: "", status: "planned" };
+
+export default function Eventos() {
+  const [events, setEvents] = useState([]);
+  const [error, setError] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [toDelete, setToDelete] = useState(null);
+  const { canEdit } = useAuth();
+
+  const loadEvents = async () => {
+    try {
+      setEvents(await api.listEvents());
+      setError("");
+    } catch (err) {
+      setError(err.message || "No se pudieron cargar eventos");
+    }
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
 
   const openCreateForm = () => {
     setEditingId(null);
-    setForm({
-      name: "",
-      startDate: "",
-      endDate: "",
-      status: "Planeado",
-    });
+    setForm(EMPTY_FORM);
     setIsFormOpen(true);
   };
 
   const openEditForm = (event) => {
     setEditingId(event.id);
     setForm({
-      name: event.name,
-      startDate: event.startDate, // si luego cambias formato, ajustas aquí
-      endDate: event.endDate,
+      title: event.title,
+      starts_at: toDateInput(event.starts_at),
+      ends_at: toDateInput(event.ends_at),
       status: event.status,
     });
     setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await api.deleteEvent(id);
+      await loadEvents();
+    } catch (err) {
+      setError(err.message || "No se pudo eliminar el evento");
+    }
+  };
+
+  const handleCancel = () => {
+    setIsFormOpen(false);
+    setEditingId(null);
+    setForm(EMPTY_FORM);
   };
 
   const handleChange = (e) => {
@@ -57,181 +96,194 @@ export default function Events() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCancel = () => {
-    setIsFormOpen(false);
-    setEditingId(null);
-    setForm({
-      name: "",
-      startDate: "",
-      endDate: "",
-      status: "Planeado",
-    });
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name || !form.startDate || !form.endDate) return;
+    if (!form.title || !form.starts_at || !form.ends_at) return;
 
-    if (editingId) {
-      // Editar evento existente
-      setEvents((prev) =>
-        prev.map((ev) =>
-          ev.id === editingId
-            ? {
-                ...ev,
-                name: form.name,
-                startDate: form.startDate,
-                endDate: form.endDate,
-                status: form.status,
-              }
-            : ev
-        )
-      );
-    } else {
-      // Crear evento nuevo
-      const newEvent = {
-        id: Date.now(),
-        name: form.name,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        status: form.status,
-      };
-      setEvents((prev) => [...prev, newEvent]);
+    const payload = {
+      title: form.title,
+      starts_at: new Date(`${form.starts_at}T00:00:00Z`).toISOString(),
+      ends_at: new Date(`${form.ends_at}T23:59:59Z`).toISOString(),
+      status: form.status,
+    };
+
+    try {
+      if (editingId) {
+        await api.updateEvent(editingId, payload);
+      } else {
+        await api.createEvent(payload);
+      }
+      await loadEvents();
+      handleCancel();
+    } catch (err) {
+      setError(err.message || "No se pudo guardar el evento");
     }
-
-    handleCancel();
   };
 
   return (
-    <div className="page-main">
-      {/* Ojo: aquí solo mostramos “Eventos”.
-          El título general “Plataforma Pastores” y el botón Cerrar sesión
-          deben ir en tu layout principal, no aquí. */}
+    <div className="space-y-5">
+      <div className="view-header">
+        <div>
+          <h2 className="view-title">Eventos</h2>
+          <p className="mt-0.5 text-sm text-slate-500">
+            {events.length} evento{events.length !== 1 ? "s" : ""} registrado{events.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        {canEdit && !isFormOpen && (
+          <button className="btn-primary" onClick={openCreateForm}>
+            <Plus size={16} />
+            Crear evento
+          </button>
+        )}
+      </div>
 
-      <h2 className="section-title">Eventos</h2>
+      {error && <div className="alert-error">{error}</div>}
 
-      <button className="btn-primary" onClick={openCreateForm}>
-        Crear evento
-      </button>
-
-      {/* Formulario de crear / editar */}
-      {isFormOpen && (
-        <div className="card" style={{ marginTop: "1rem", marginBottom: "1rem" }}>
-          <h3 style={{ marginBottom: "0.75rem" }}>
-            {editingId ? "Editar evento" : "Nuevo evento"}
-          </h3>
-
-          <form
-            onSubmit={handleSubmit}
-            className="form-grid"
-            style={{ display: "grid", gap: "0.75rem", maxWidth: "520px" }}
-          >
-            <div>
-              <label className="field-label">Nombre</label>
-              <input
-                type="text"
-                name="name"
-                className="field-input"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Ej: Conferencia Nacional"
-              />
-            </div>
-
-            <div>
-              <label className="field-label">Fecha inicio</label>
-              <input
-                type="date"
-                name="startDate"
-                className="field-input"
-                value={form.startDate}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label className="field-label">Fecha fin</label>
-              <input
-                type="date"
-                name="endDate"
-                className="field-input"
-                value={form.endDate}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div>
-              <label className="field-label">Estado</label>
-              <select
-                name="status"
-                className="field-input"
-                value={form.status}
-                onChange={handleChange}
-              >
-                {ESTADOS.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {estado}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "0.5rem",
-                marginTop: "0.5rem",
-              }}
+      {/* Inline form — solo para editores */}
+      {canEdit && isFormOpen && (
+        <div className="card border-brand-200">
+          <div className="flex items-center justify-between mb-5">
+            <h3 className="font-semibold text-slate-900">
+              {editingId ? "Editar evento" : "Nuevo evento"}
+            </h3>
+            <button
+              type="button"
+              className="btn-ghost btn-sm p-1.5"
+              onClick={handleCancel}
+              aria-label="Cerrar"
             >
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={handleCancel}
-              >
+              <X size={16} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="field-label md:col-span-2">
+                Nombre del evento
+                <input
+                  type="text"
+                  name="title"
+                  className="field-input"
+                  value={form.title}
+                  onChange={handleChange}
+                  placeholder="Ej: Conferencia Nacional 2026"
+                  required
+                />
+              </label>
+
+              <div className="field-label">
+                Fecha de inicio
+                <DatePicker
+                  value={form.starts_at}
+                  onChange={(v) => setForm((p) => ({ ...p, starts_at: v }))}
+                  placeholder="Seleccionar fecha de inicio..."
+                />
+              </div>
+
+              <div className="field-label">
+                Fecha de término
+                <DatePicker
+                  value={form.ends_at}
+                  onChange={(v) => setForm((p) => ({ ...p, ends_at: v }))}
+                  placeholder="Seleccionar fecha de término..."
+                />
+              </div>
+
+              <label className="field-label">
+                Estado
+                <select
+                  name="status"
+                  className="field-input"
+                  value={form.status}
+                  onChange={handleChange}
+                >
+                  {ESTADOS.map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
+              <button type="button" className="btn-secondary" onClick={handleCancel}>
                 Cancelar
               </button>
               <button type="submit" className="btn-primary">
-                {editingId ? "Guardar cambios" : "Guardar"}
+                {editingId ? "Guardar cambios" : "Crear evento"}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Tabla de eventos */}
-      <div className="card" style={{ marginTop: "1rem" }}>
+      {/* Table */}
+      <div className="table-wrapper">
         <table className="table">
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Fecha inicio</th>
-              <th>Fecha fin</th>
+              <th>Evento</th>
+              <th>Inicio</th>
+              <th>Término</th>
               <th>Estado</th>
-              <th style={{ width: "130px" }}>Acciones</th>
+              {canEdit && <th style={{ width: 80 }}></th>}
             </tr>
           </thead>
           <tbody>
             {events.map((ev) => (
               <tr key={ev.id}>
-                <td>{ev.name}</td>
-                <td>{ev.startDate}</td>
-                <td>{ev.endDate}</td>
-                <td>{ev.status}</td>
                 <td>
-                  <button
-                    className="btn-link"
-                    type="button"
-                    onClick={() => openEditForm(ev)}
-                  >
-                    Editar
-                  </button>
+                  <div className="flex items-center gap-2.5">
+                    <Calendar size={15} className="text-slate-400 flex-shrink-0" />
+                    <span className="font-medium text-slate-900">{ev.title}</span>
+                  </div>
                 </td>
+                <td className="text-slate-500">{formatDate(ev.starts_at)}</td>
+                <td className="text-slate-500">{formatDate(ev.ends_at)}</td>
+                <td>
+                  <span className={STATUS_BADGE[ev.status] ?? "badge-muted"}>
+                    {STATUS_LABEL[ev.status] ?? ev.status}
+                  </span>
+                </td>
+                {canEdit && (
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <button className="btn-ghost btn-sm gap-1" type="button" onClick={() => openEditForm(ev)}>
+                        <Pencil size={13} />
+                        Editar
+                      </button>
+                      <button
+                        className="btn-ghost btn-sm text-red-500 hover:text-red-700 hover:bg-red-50"
+                        type="button"
+                        onClick={() => setToDelete(ev)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
+            {events.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-12 text-center text-sm text-slate-400">
+                  No hay eventos registrados.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(toDelete)}
+        title="Eliminar evento"
+        message={`¿Estás seguro que deseas eliminar "${toDelete?.title}"? Se eliminarán también todas sus sesiones y registros de asistencia. Esta acción no se puede deshacer.`}
+        confirmLabel="Sí, eliminar"
+        onCancel={() => setToDelete(null)}
+        onConfirm={() => { handleDelete(toDelete.id); setToDelete(null); }}
+      />
     </div>
   );
 }

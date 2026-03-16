@@ -1,0 +1,2 @@
+ALTER TABLE core.pastors
+  ADD COLUMN IF NOT EXISTS country TEXT;

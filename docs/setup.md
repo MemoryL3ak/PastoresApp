@@ -24,7 +24,15 @@ npm run dev:frontend
 ## 5) Aplicar esquema en Supabase
 En SQL Editor de Supabase:
 1. Ejecutar `supabase/migrations/202603150001_initial_schema.sql`.
-2. Ejecutar `supabase/seed.sql` (entorno de pruebas).
+2. Ejecutar `supabase/migrations/202603150002_single_institution_simplification.sql`.
+3. Ejecutar `supabase/migrations/202603150003_split_schemas.sql`.
+4. Ejecutar `supabase/seed.sql` (entorno de pruebas).
+
+En Supabase Dashboard -> Project Settings -> API -> Exposed schemas:
+- agregar `core`
+- agregar `events`
+- agregar `credentials`
+- agregar `reporting`
 
 ## 6) Validaciones
 ```bash

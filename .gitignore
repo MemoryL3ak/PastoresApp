@@ -17,6 +17,7 @@ coverage/
 .vite/
 apps/frontend/dist/
 apps/backend/dist/
+apps/frontend/.next/
 
 # Environment and local config
 .env

@@ -1,6 +1,8 @@
 // src/credentialTemplatesStorage.js
 
 const STORAGE_KEY = "credentialTemplates";
+const canUseStorage = () =>
+  typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 
 function createDefaultTemplate() {
   const id = "tpl_iep_moderno";
@@ -88,6 +90,10 @@ function createDefaultTemplate() {
 }
 
 export function loadTemplates() {
+  if (!canUseStorage()) {
+    return createDefaultTemplate();
+  }
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -119,6 +125,8 @@ export function loadTemplates() {
 }
 
 export function saveTemplates(templates) {
+  if (!canUseStorage()) return;
+
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
   } catch (e) {

@@ -241,8 +241,8 @@ export default function CredentialTemplates() {
         <div className="view-header">
           <h2 className="view-title">Plantillas de Credenciales</h2>
         </div>
-        <div className="panel">
-          <p className="panel-text">
+        <div className="card space-y-4">
+          <p className="text-sm text-slate-600">
             Aún no tienes plantillas definidas. Crea una para diseñar el
             formato de la credencial (fondo + posición de campos).
           </p>
@@ -331,7 +331,7 @@ export default function CredentialTemplates() {
             </label>
 
             <div style={{ marginBottom: 12 }}>
-              <p className="panel-text" style={{ marginBottom: 4 }}>
+              <p className="text-sm text-slate-600" style={{ marginBottom: 4 }}>
                 Plantilla frontal (imagen PNG/JPG)
               </p>
               <input
@@ -342,7 +342,7 @@ export default function CredentialTemplates() {
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <p className="panel-text" style={{ marginBottom: 4 }}>
+              <p className="text-sm text-slate-600" style={{ marginBottom: 4 }}>
                 Plantilla reverso (imagen PNG/JPG)
               </p>
               <input
@@ -353,7 +353,7 @@ export default function CredentialTemplates() {
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <p className="panel-text" style={{ marginBottom: 4 }}>
+              <p className="text-sm text-slate-600" style={{ marginBottom: 4 }}>
                 Firma del Superintendente (PNG, ideal fondo transparente)
               </p>
               <input
@@ -370,7 +370,7 @@ export default function CredentialTemplates() {
                 marginBottom: 8,
               }}
             >
-              <p className="panel-text" style={{ margin: 0 }}>
+              <p className="text-sm text-slate-600" style={{ margin: 0 }}>
                 Campos del {side === "front" ? "frontal" : "reverso"}
               </p>
               <button className="btn-secondary" onClick={handleAddField}>
@@ -491,7 +491,7 @@ export default function CredentialTemplates() {
 
           {/* PREVIEW ÚNICO: muestra solo el lado seleccionado */}
           <div className="credential-preview panel">
-            <p className="panel-text" style={{ marginBottom: 8 }}>
+            <p className="text-sm text-slate-600" style={{ marginBottom: 8 }}>
               Vista previa ({side === "front" ? "FRONTAL" : "REVERSO"})
             </p>
 
