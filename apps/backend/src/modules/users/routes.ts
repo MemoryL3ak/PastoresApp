@@ -75,4 +75,17 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     if (error) return reply.badRequest(error.message);
     return data;
   });
+
+  app.patch("/:id/reset-password", async (request, reply) => {
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const { password } = z.object({ password: z.string().min(6) }).parse(request.body);
+
+    const { error } = await app.supabaseAdmin.auth.admin.updateUserById(id, {
+      password,
+      user_metadata: { must_change_password: true },
+    });
+
+    if (error) return reply.badRequest(error.message);
+    return reply.code(204).send();
+  });
 };

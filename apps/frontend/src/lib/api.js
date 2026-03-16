@@ -37,6 +37,8 @@ export const api = {
     apiFetch("/users", { method: "POST", body: JSON.stringify(payload) }),
   updateUser: (id, payload) =>
     apiFetch(`/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  resetUserPassword: (id, password) =>
+    apiFetch(`/users/${id}/reset-password`, { method: "PATCH", body: JSON.stringify({ password }) }),
 
   listPastors: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
