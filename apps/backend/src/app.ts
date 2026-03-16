@@ -12,6 +12,7 @@ import { healthRoutes } from "./modules/health/routes.js";
 import { pastorRoutes } from "./modules/pastors/routes.js";
 import { reportRoutes } from "./modules/reports/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
+import { authPlugin } from "./plugins/auth.js";
 import { supabasePlugin } from "./plugins/supabase.js";
 
 export async function createApp() {
@@ -27,6 +28,7 @@ export async function createApp() {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });
   await app.register(supabasePlugin);
+  await app.register(authPlugin);
 
   await app.register(healthRoutes, { prefix: "/v1" });
   await app.register(dashboardRoutes, { prefix: "/v1/dashboard" });
