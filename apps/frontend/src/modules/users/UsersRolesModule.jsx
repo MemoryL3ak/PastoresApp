@@ -14,7 +14,7 @@ const ROLES = [
 const ROLE_MAP = Object.fromEntries(ROLES.map((r) => [r.value, r]));
 
 const emptyCreate = { email: "", password: "", full_name: "", role: "viewer", assigned_country: "" };
-const emptyEdit   = { full_name: "", role: "viewer", assigned_country: "", is_active: true };
+const emptyEdit   = { email: "", full_name: "", role: "viewer", assigned_country: "", is_active: true };
 
 /* ── Modal wrapper ──────────────────────────────────────────────── */
 function Modal({ title, onClose, children }) {
@@ -68,6 +68,7 @@ export default function UsersRolesModule() {
   const openEdit = (user) => {
     setEditingUser(user);
     setEditForm({
+      email:            user.email ?? "",
       full_name:        user.full_name ?? "",
       role:             user.role ?? "viewer",
       assigned_country: user.assigned_country ?? "",
@@ -80,6 +81,7 @@ export default function UsersRolesModule() {
     e.preventDefault();
     try {
       await api.updateUser(editingUser.id, {
+        email:            editForm.email || undefined,
         full_name:        editForm.full_name,
         role:             editForm.role,
         assigned_country: editForm.role === "country_assigned" ? (editForm.assigned_country || null) : null,
@@ -194,6 +196,7 @@ export default function UsersRolesModule() {
           <thead>
             <tr>
               <th>Nombre</th>
+              <th>Correo</th>
               <th>Rol</th>
               <th>País asignado</th>
               <th>Estado</th>
@@ -206,6 +209,7 @@ export default function UsersRolesModule() {
               return (
                 <tr key={user.id}>
                   <td className="font-medium text-slate-900">{user.full_name}</td>
+                  <td className="text-slate-500 text-sm">{user.email ?? "—"}</td>
                   <td className="text-slate-600 text-sm">{ROLE_MAP[user.role]?.label ?? user.role}</td>
                   <td className="text-slate-500 text-sm">
                     {user.role === "country_assigned" ? (country?.name ?? user.assigned_country ?? "Sin asignar") : "—"}
@@ -231,7 +235,7 @@ export default function UsersRolesModule() {
             })}
             {users.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-12 text-center text-sm text-slate-400">
+                <td colSpan={6} className="py-12 text-center text-sm text-slate-400">
                   No hay usuarios registrados.
                 </td>
               </tr>
@@ -245,10 +249,15 @@ export default function UsersRolesModule() {
         <Modal title={`Editar usuario — ${editingUser.full_name}`} onClose={() => setEditingUser(null)}>
           <form onSubmit={handleEdit}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="field-label sm:col-span-2">
+              <label className="field-label">
                 Nombre completo
                 <input className="field-input" required value={editForm.full_name}
                   onChange={(e) => setEdit("full_name", e.target.value)} />
+              </label>
+              <label className="field-label">
+                Correo electrónico
+                <input type="email" className="field-input" required value={editForm.email}
+                  onChange={(e) => setEdit("email", e.target.value)} />
               </label>
               <label className="field-label">
                 Rol
