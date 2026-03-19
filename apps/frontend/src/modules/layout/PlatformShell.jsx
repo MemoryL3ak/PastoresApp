@@ -82,7 +82,7 @@ export default function PlatformShell({ children }) {
   const pageTitle = PAGE_TITLES[pathname] ?? "Plataforma Pastores";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-screen overflow-hidden" style={{ background: "#eef4fc" }}>
       {/* Mobile overlay */}
       {mobileOpen && (
         <button
@@ -98,12 +98,17 @@ export default function PlatformShell({ children }) {
         style={{
           width: isMobile ? undefined : collapsed ? 72 : 240,
           background: "linear-gradient(160deg, #1a3f7a 0%, #1e4d8c 45%, #2563b0 100%)",
+          boxShadow: isMobile
+            ? mobileOpen ? "4px 0 32px rgba(15,45,92,0.35)" : "none"
+            : "4px 0 24px rgba(15,45,92,0.18)",
         }}
         className={[
-          "relative z-30 flex flex-shrink-0 flex-col transition-[width] duration-200 ease-in-out overflow-hidden",
-          isMobile
-            ? `fixed inset-y-0 left-0 w-60 ${mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"} transition-transform duration-200`
-            : "",
+          "flex flex-shrink-0 flex-col overflow-hidden",
+          // Mobile: siempre fixed, desliza con transform
+          "fixed inset-y-0 left-0 z-30 w-60 transition-transform duration-200",
+          mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
+          // Desktop: posición relativa en el flujo, transición de ancho
+          "md:relative md:inset-auto md:translate-x-0 md:transition-[width] md:duration-200 md:ease-in-out",
         ].join(" ")}
       >
         {/* Brand */}
@@ -195,12 +200,12 @@ export default function PlatformShell({ children }) {
       {/* ── Main ──────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-16 flex-shrink-0 items-center justify-between bg-white px-3 sm:px-5 gap-4" style={{ borderBottom: "2px solid #ddeaf8", boxShadow: "0 1px 0 #b8d4f0" }}>
+        <header className="flex h-16 flex-shrink-0 items-center justify-between px-3 sm:px-5 gap-4" style={{ background: "linear-gradient(90deg, #e8f0fb 0%, #f0f6fc 100%)", borderBottom: "1px solid #ccddf5", boxShadow: "0 1px 3px rgba(37,99,176,0.07)" }}>
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={handleToggleNav}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors flex-shrink-0"
+              className="rounded-lg p-2 text-brand-600 hover:bg-brand-100/70 hover:text-brand-800 transition-colors flex-shrink-0"
               aria-label="Abrir o cerrar menú"
             >
               {isMobile && mobileOpen ? <X size={20} /> : <Menu size={20} />}

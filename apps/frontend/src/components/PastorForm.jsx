@@ -198,118 +198,115 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
       </div>
 
       {/* Form */}
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="card space-y-6">
 
-          <label className="field-label">
-            Nombre completo
-            <input
-              className="field-input"
-              placeholder="Ej: Juan Pérez"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-            />
-          </label>
+        {/* Sección: Información personal */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            <h3 className="text-sm font-semibold text-brand-800">Información personal</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <label className="field-label">
+              Nombre completo
+              <input className="field-input" placeholder="Ej: Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            </label>
+            <div className="field-label">
+              <span>Nacionalidad</span>
+              <div className="flex items-center gap-3">
+                <select className="field-input" value={pastorCountry} onChange={(e) => setPastorCountry(e.target.value)}>
+                  <option value="">Seleccionar país...</option>
+                  {IEP_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
+                {pastorFlagUrl && <img src={pastorFlagUrl} alt={pastorCountry} className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0" />}
+              </div>
+            </div>
+            <label className="field-label">
+              {docInfo.label}
+              <input className="field-input" placeholder={docInfo.placeholder} value={rut} onChange={(e) => setRut(e.target.value)} />
+            </label>
+            <label className="field-label">
+              Correo electrónico
+              <input className="field-input" type="email" placeholder="ejemplo@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </label>
+          </div>
+        </div>
 
-          {/* Nacionalidad */}
-          <div className="field-label">
-            <span>Nacionalidad</span>
-            <div className="flex items-center gap-3">
-              <select
-                className="field-input"
-                value={pastorCountry}
-                onChange={(e) => setPastorCountry(e.target.value)}
-              >
-                <option value="">Seleccionar país...</option>
-                {IEP_COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
-              </select>
-              {pastorFlagUrl && (
-                <img src={pastorFlagUrl} alt={pastorCountry} className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0" />
-              )}
+        <div className="border-t border-slate-100" />
+
+        {/* Sección: Iglesia */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            <h3 className="text-sm font-semibold text-brand-800">Iglesia</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="field-label">
+              <span>País Iglesia</span>
+              <div className="flex items-center gap-3">
+                <select className="field-input" value={churchCountry} onChange={(e) => handleChurchCountryChange(e.target.value)}>
+                  <option value="">Seleccionar país...</option>
+                  {IEP_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
+                {churchFlagUrl && <img src={churchFlagUrl} alt={churchCountry} className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0" />}
+              </div>
+            </div>
+            <div className="field-label">
+              <span>Iglesia</span>
+              <SearchSelect
+                value={churchId}
+                onChange={setChurchId}
+                options={churchesByCountry.map((c) => ({ id: c.id, name: c.name }))}
+                placeholder={churchCountry ? "Seleccionar iglesia..." : "Selecciona un país primero..."}
+              />
             </div>
           </div>
+        </div>
 
-          {/* País Iglesia */}
-          <div className="field-label">
-            <span>País Iglesia</span>
-            <div className="flex items-center gap-3">
-              <select
-                className="field-input"
-                value={churchCountry}
-                onChange={(e) => handleChurchCountryChange(e.target.value)}
-              >
-                <option value="">Seleccionar país...</option>
-                {IEP_COUNTRIES.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
+        <div className="border-t border-slate-100" />
+
+        {/* Sección: Ministerio */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            <h3 className="text-sm font-semibold text-brand-800">Ministerio</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <label className="field-label">
+              Grado
+              <select className="field-input" value={degreeTitle} onChange={(e) => setDegreeTitle(e.target.value)}>
+                <option value="">Seleccionar grado...</option>
+                <option>Probando</option>
+                <option>Diácono</option>
+                <option>Presbítero</option>
+                <option>Superintendente</option>
               </select>
-              {churchFlagUrl && (
-                <img src={churchFlagUrl} alt={churchCountry} className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0" />
-              )}
-            </div>
+            </label>
+            <label className="field-label">
+              Estado
+              <select className="field-input" value={estado} onChange={(e) => setEstado(e.target.value)}>
+                <option>Activo</option>
+                <option>Honorario</option>
+                <option>Inactivo</option>
+              </select>
+            </label>
+            <label className="field-label">
+              Fecha de vencimiento
+              <DatePicker value={fechaVencimiento} onChange={setFechaVencimiento} placeholder="Seleccionar fecha..." />
+            </label>
           </div>
-
-          {/* Iglesia */}
-          <div className="field-label">
-            <span>Iglesia</span>
-            <SearchSelect
-              value={churchId}
-              onChange={setChurchId}
-              options={churchesByCountry.map((c) => ({ id: c.id, name: c.name }))}
-              placeholder={churchCountry ? "Seleccionar iglesia..." : "Selecciona un país primero..."}
-            />
-          </div>
-
-          <label className="field-label">
-            {docInfo.label}
-            <input
-              className="field-input"
-              placeholder={docInfo.placeholder}
-              value={rut}
-              onChange={(e) => setRut(e.target.value)}
-            />
-          </label>
-
-          <label className="field-label">
-            Correo electrónico
-            <input
-              className="field-input"
-              type="email"
-              placeholder="ejemplo@correo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-
-          <label className="field-label">
-            Grado
-            <select
-              className="field-input"
-              value={degreeTitle}
-              onChange={(e) => setDegreeTitle(e.target.value)}
-            >
-              <option value="">Seleccionar grado...</option>
-              <option>Probando</option>
-              <option>Diácono</option>
-              <option>Presbítero</option>
-              <option>Superintendente</option>
-            </select>
-          </label>
 
           {/* Zona Administrada — sólo para Presbítero */}
           {isPresbitero && (
-            <div className="md:col-span-2 bg-brand-50 border border-brand-200 rounded-xl p-4 space-y-4">
-              <div className="text-sm font-semibold text-brand-800">Zona Administrada</div>
+            <div className="mt-5 bg-brand-50 border border-brand-200 rounded-xl p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="w-[3px] h-4 rounded-full bg-brand-400 flex-shrink-0" />
+                <div className="text-sm font-semibold text-brand-800">Zona Administrada</div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="field-label">
                   Zona local
-                  <select
-                    className="field-input"
-                    value={zone}
-                    onChange={(e) => setZone(e.target.value)}
-                  >
+                  <select className="field-input" value={zone} onChange={(e) => setZone(e.target.value)}>
                     <option value="">Sin Zona</option>
                     {Array.from({ length: 33 }, (_, i) => i + 1).map((n) => (
                       <option key={n} value={String(n)}>{n}</option>
@@ -319,84 +316,59 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
                 <div className="field-label">
                   <span>Zona extranjero</span>
                   <div className="flex items-center gap-3">
-                    <select
-                      className="field-input"
-                      value={foreignZone}
-                      onChange={(e) => setForeignZone(e.target.value)}
-                    >
+                    <select className="field-input" value={foreignZone} onChange={(e) => setForeignZone(e.target.value)}>
                       <option value="">Sin zona extranjero</option>
-                      {IEP_FOREIGN_COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
-                      ))}
+                      {IEP_FOREIGN_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                     </select>
                     {foreignZone && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={`https://flagcdn.com/w160/${foreignZone.toLowerCase()}.png`}
-                        alt={foreignZone}
-                        className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0"
-                      />
+                      <img src={`https://flagcdn.com/w160/${foreignZone.toLowerCase()}.png`} alt={foreignZone} className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0" />
                     )}
                   </div>
                 </div>
               </div>
             </div>
           )}
+        </div>
 
-          <label className="field-label">
-            Estado
-            <select
-              className="field-input"
-              value={estado}
-              onChange={(e) => setEstado(e.target.value)}
-            >
-              <option>Activo</option>
-              <option>Honorario</option>
-              <option>Inactivo</option>
-            </select>
-          </label>
+        <div className="border-t border-slate-100" />
 
-          <label className="field-label">
-            Fecha de vencimiento
-            <DatePicker
-              value={fechaVencimiento}
-              onChange={setFechaVencimiento}
-              placeholder="Seleccionar fecha..."
-            />
-          </label>
-
-          {/* Photo upload */}
-          <div className="field-label">
-            <span>Foto del pastor</span>
-            <div className="flex items-center gap-4">
-              <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-              {photoUrl ? (
-                <div className="relative flex-shrink-0">
-                  <img src={photoUrl} alt="Preview" className="w-32 h-40 rounded-lg object-cover ring-1 ring-slate-200" />
-                  <button type="button" onClick={() => setPhotoUrl("")}
-                    className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-slate-700 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
-                    <X size={10} />
-                  </button>
-                </div>
-              ) : (
-                <div className="w-32 h-40 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <UserCircle2 size={56} className="text-slate-300" />
-                </div>
-              )}
+        {/* Sección: Foto */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            <h3 className="text-sm font-semibold text-brand-800">Foto del pastor</h3>
+          </div>
+          <div className="flex items-center gap-5">
+            <input ref={photoRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+            {photoUrl ? (
+              <div className="relative flex-shrink-0">
+                <img src={photoUrl} alt="Preview" className="w-32 h-40 rounded-xl object-cover ring-2 ring-brand-200" />
+                <button type="button" onClick={() => setPhotoUrl("")}
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-slate-700 text-white flex items-center justify-center hover:bg-red-600 transition-colors">
+                  <X size={10} />
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => photoRef.current?.click()}
+                className="w-32 h-40 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50 flex flex-col items-center justify-center gap-2 hover:border-brand-400 hover:bg-brand-100/60 transition-colors flex-shrink-0">
+                <UserCircle2 size={40} className="text-brand-300" />
+                <span className="text-xs text-brand-400 font-medium">Subir foto</span>
+              </button>
+            )}
+            {photoUrl && (
               <button type="button" onClick={() => photoRef.current?.click()} className="btn-secondary btn-sm gap-2">
                 <Upload size={14} />
-                {photoUrl ? "Cambiar foto" : "Subir foto"}
+                Cambiar foto
               </button>
-            </div>
+            )}
           </div>
-
-
-
         </div>
+
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3">
+      <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 flex items-center gap-3 shadow-sm">
         <button className="btn-primary" onClick={handleSave}>
           <Save size={15} />
           Guardar

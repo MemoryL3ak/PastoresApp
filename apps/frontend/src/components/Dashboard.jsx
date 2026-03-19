@@ -11,10 +11,10 @@ function formatDate(dateIso) {
 }
 
 const KPI_CONFIG = [
-  { key: "pastors",          label: "Pastores",         icon: Users,         color: "text-blue-600",    bg: "bg-blue-50"    },
-  { key: "churches",         label: "Iglesias",         icon: Building2,     color: "text-violet-600",  bg: "bg-violet-50"  },
-  { key: "attendance_today", label: "Asistencia hoy",   icon: ClipboardCheck,color: "text-emerald-600", bg: "bg-emerald-50" },
-  { key: "active_events",    label: "Eventos activos",  icon: Calendar,      color: "text-amber-600",   bg: "bg-amber-50"   },
+  { key: "pastors",          label: "Pastores",         icon: Users,         color: "text-blue-600",    bg: "bg-blue-50",    border: "border-l-[3px] border-blue-400"    },
+  { key: "churches",         label: "Iglesias",         icon: Building2,     color: "text-violet-600",  bg: "bg-violet-50",  border: "border-l-[3px] border-violet-400"  },
+  { key: "attendance_today", label: "Asistencia hoy",   icon: ClipboardCheck,color: "text-emerald-600", bg: "bg-emerald-50", border: "border-l-[3px] border-emerald-400" },
+  { key: "active_events",    label: "Eventos activos",  icon: Calendar,      color: "text-amber-600",   bg: "bg-amber-50",   border: "border-l-[3px] border-amber-400"   },
 ];
 
 function KpiSkeleton() {
@@ -49,9 +49,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Dashboard</h2>
-        <p className="mt-1 text-sm text-slate-500">Resumen general de la plataforma</p>
+      <div className="view-header">
+        <div>
+          <h2 className="view-title">Dashboard</h2>
+          <p className="mt-0.5 text-sm text-slate-500">Resumen general de la plataforma</p>
+        </div>
       </div>
 
       {error && <div className="alert-error">{error}</div>}
@@ -60,8 +62,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {isLoading && !data
           ? KPI_CONFIG.map(({ key }) => <KpiSkeleton key={key} />)
-          : KPI_CONFIG.map(({ key, label, icon: Icon, color, bg }) => (
-              <div key={key} className="card flex items-start gap-4">
+          : KPI_CONFIG.map(({ key, label, icon: Icon, color, bg, border }) => (
+              <div key={key} className={`card flex items-start gap-4 ${border}`}>
                 <div className={`${bg} ${color} rounded-xl p-3 flex-shrink-0`}>
                   <Icon size={22} />
                 </div>
@@ -77,8 +79,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card space-y-4">
           <div className="flex items-center gap-2">
-            <Calendar size={16} className="text-brand-600" />
-            <h3 className="font-semibold text-slate-900 text-sm">Próximos eventos</h3>
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            <Calendar size={15} className="text-brand-500" />
+            <h3 className="font-semibold text-brand-800 text-sm">Próximos eventos</h3>
           </div>
           {isLoading && !data ? <ListSkeleton rows={3} /> : (
             <div className="space-y-2">
@@ -101,8 +104,9 @@ export default function Dashboard() {
 
         <div className="card space-y-4">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-emerald-600" />
-            <h3 className="font-semibold text-slate-900 text-sm">Última asistencia registrada</h3>
+            <span className="w-[3px] h-4 rounded-full bg-emerald-500 flex-shrink-0" />
+            <Clock size={15} className="text-emerald-500" />
+            <h3 className="font-semibold text-brand-800 text-sm">Última asistencia registrada</h3>
           </div>
           {isLoading && !data ? <ListSkeleton rows={3} /> : (
             <div className="space-y-2">
@@ -115,7 +119,7 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-slate-800 truncate">{item.pastor_name}</p>
                       <p className="text-xs text-slate-400 truncate">{item.event_title}</p>
                     </div>
-                    <span className="badge-success flex-shrink-0">{item.session_label}</span>
+                    <span className="badge-info flex-shrink-0">{item.session_label}</span>
                   </div>
                 ))
               )}

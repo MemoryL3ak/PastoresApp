@@ -79,16 +79,21 @@ export default function IglesiasModule() {
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-        <input type="text" className="field-input pl-9" placeholder="Buscar iglesia..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div className="flex flex-wrap gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
+          <input type="text" className="field-input pl-9" placeholder="Buscar iglesia..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
       </div>
 
       {error && <div className="alert-error">{error}</div>}
 
       {canEdit && (
         <div className="card">
-          <h3 className="text-sm font-semibold text-slate-900 mb-5">{editingId ? "Editar iglesia" : "Nueva iglesia"}</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-800 mb-5">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            {editingId ? "Editar iglesia" : "Nueva iglesia"}
+          </h3>
           <form onSubmit={onSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <label className="field-label md:col-span-2">

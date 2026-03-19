@@ -210,7 +210,7 @@ export default function Asistencia() {
       {error && <div className="alert-error">{error}</div>}
 
       {/* Selectors */}
-      <div className="card">
+      <div className="rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <label className="field-label">
             Evento
@@ -268,7 +268,7 @@ export default function Asistencia() {
 
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <ScanBarcode size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ScanBarcode size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
               <input
                 ref={scanInputRef}
                 type="text"
@@ -308,7 +308,7 @@ export default function Asistencia() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
               <input type="text" className="field-input pl-9" placeholder="Filtrar por nombre..." value={filterName} onChange={(e) => setFilterName(e.target.value)} />
             </div>
             <input type="text" className="field-input" placeholder="Filtrar por iglesia..." value={filterChurch} onChange={(e) => setFilterChurch(e.target.value)} />

@@ -100,7 +100,10 @@ export default function Eventos() {
       {canEdit && isFormOpen && (
         <div className="card border-brand-200">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-semibold text-slate-900">{editingId ? "Editar evento" : "Nuevo evento"}</h3>
+            <h3 className="flex items-center gap-2 font-semibold text-brand-800">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            {editingId ? "Editar evento" : "Nuevo evento"}
+          </h3>
             <button type="button" className="btn-ghost btn-sm p-1.5" onClick={handleCancel}><X size={16} /></button>
           </div>
           <form onSubmit={handleSubmit}>
@@ -157,7 +160,7 @@ export default function Eventos() {
                   <tr key={ev.id}>
                     <td>
                       <div className="flex items-center gap-2.5">
-                        <Calendar size={15} className="text-slate-400 flex-shrink-0" />
+                        <Calendar size={15} className="text-brand-400 flex-shrink-0" />
                         <span className="font-medium text-slate-900">{ev.title}</span>
                       </div>
                     </td>

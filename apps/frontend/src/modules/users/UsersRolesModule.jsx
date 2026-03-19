@@ -8,9 +8,9 @@ import { useToast } from "@/context/ToastContext";
 import { COUNTRIES } from "@/lib/geography";
 
 const ROLES = [
-  { value: "admin",            label: "Administrador",     description: "Acceso completo: crear, editar y eliminar todo.",                          icon: ShieldCheck },
-  { value: "country_assigned", label: "Solo País Asignado", description: "Ver y editar únicamente registros del país que se le asigne.",             icon: Globe },
-  { value: "viewer",           label: "Visualizador",      description: "Solo lectura. Puede ver todo pero no modificar nada.",                      icon: Eye },
+  { value: "admin",            label: "Administrador",      description: "Acceso completo: crear, editar y eliminar todo.",                         icon: ShieldCheck, iconBg: "bg-brand-50",  iconColor: "text-brand-600",  border: "border-l-[3px] border-brand-500",  labelColor: "text-brand-800" },
+  { value: "country_assigned", label: "Solo País Asignado", description: "Ver y editar únicamente registros del país que se le asigne.",            icon: Globe,       iconBg: "bg-cyan-50",   iconColor: "text-cyan-600",   border: "border-l-[3px] border-cyan-500",   labelColor: "text-cyan-800" },
+  { value: "viewer",           label: "Visualizador",       description: "Solo lectura. Puede ver todo pero no modificar nada.",                     icon: Eye,         iconBg: "bg-slate-100", iconColor: "text-slate-500",  border: "border-l-[3px] border-slate-400",  labelColor: "text-slate-700" },
 ];
 
 const ROLE_MAP = Object.fromEntries(ROLES.map((r) => [r.value, r]));
@@ -24,7 +24,10 @@ function Modal({ title, onClose, children }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-800">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            {title}
+          </h3>
           <button type="button" onClick={onClose} className="btn-ghost btn-sm p-1.5">
             <X size={16} />
           </button>
@@ -131,13 +134,13 @@ export default function UsersRolesModule() {
 
       {/* Role legend */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {ROLES.map(({ value, label, description, icon: Icon }) => (
-          <div key={value} className="card py-4 flex gap-3">
-            <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-              <Icon size={18} className="text-slate-500" />
+        {ROLES.map(({ value, label, description, icon: Icon, iconBg, iconColor, border, labelColor }) => (
+          <div key={value} className={`card py-4 flex gap-3 ${border}`}>
+            <div className={`h-9 w-9 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
+              <Icon size={18} className={iconColor} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900">{label}</p>
+              <p className={`text-sm font-semibold ${labelColor}`}>{label}</p>
               <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">{description}</p>
             </div>
           </div>
@@ -147,7 +150,10 @@ export default function UsersRolesModule() {
       {/* Create form */}
       {creating && (
         <div className="card">
-          <h3 className="text-sm font-semibold text-slate-900 mb-5">Nuevo usuario</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-800 mb-5">
+            <span className="w-[3px] h-4 rounded-full bg-brand-500 flex-shrink-0" />
+            Nuevo usuario
+          </h3>
           <form onSubmit={handleCreate}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <label className="field-label">
