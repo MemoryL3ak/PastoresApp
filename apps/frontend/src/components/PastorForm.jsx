@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileDown, Save, UserCircle2, Upload, X, ChevronDown, Search } from "lucide-react";
 import { getActiveTemplate } from "../credentialTemplatesStorage";
 import { generateCredentialPdf } from "../generateCredentialPdf";
-import { COUNTRIES, getDocumentInfo } from "../lib/geography";
+import { IEP_COUNTRIES, getDocumentInfo } from "../lib/geography";
+
+const IEP_FOREIGN_COUNTRIES = IEP_COUNTRIES.filter((c) => c.code !== "CL");
 import { useToast } from "../context/ToastContext";
 import DatePicker from "./DatePicker";
 
@@ -112,6 +114,12 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
   const photoRef = useRef(null);
   const [fechaVencimiento, setFechaVencimiento] = useState(pastor?.fechaVencimiento ?? "");
 
+  // Zona administrada (sólo Presbítero)
+  const [zone, setZone] = useState(pastor?.zone ?? "");
+  const [foreignZone, setForeignZone] = useState(pastor?.foreignZone ?? "");
+
+  const isPresbitero = degreeTitle === "Presbítero";
+
   // País pastor (nacionalidad)
   const [pastorCountry, setPastorCountry] = useState(pastor?.pastorCountry ?? "");
 
@@ -170,7 +178,7 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
   };
 
   const handleSave = () => {
-    onSave({ id: pastor?.id, nombre, rut, email, church_id: churchId, degreeTitle, estado, photoUrl, fechaVencimiento, pastorCountry });
+    onSave({ id: pastor?.id, nombre, rut, email, church_id: churchId, degreeTitle, estado, photoUrl, fechaVencimiento, pastorCountry, zone: isPresbitero ? zone : "", foreignZone: isPresbitero ? foreignZone : "" });
   };
 
   return (
@@ -213,7 +221,7 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
                 onChange={(e) => setPastorCountry(e.target.value)}
               >
                 <option value="">Seleccionar país...</option>
-                {COUNTRIES.map((c) => (
+                {IEP_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </select>
@@ -233,7 +241,7 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
                 onChange={(e) => handleChurchCountryChange(e.target.value)}
               >
                 <option value="">Seleccionar país...</option>
-                {COUNTRIES.map((c) => (
+                {IEP_COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </select>
@@ -289,6 +297,51 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
               <option>Superintendente</option>
             </select>
           </label>
+
+          {/* Zona Administrada — sólo para Presbítero */}
+          {isPresbitero && (
+            <div className="md:col-span-2 bg-brand-50 border border-brand-200 rounded-xl p-4 space-y-4">
+              <div className="text-sm font-semibold text-brand-800">Zona Administrada</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="field-label">
+                  Zona local
+                  <select
+                    className="field-input"
+                    value={zone}
+                    onChange={(e) => setZone(e.target.value)}
+                  >
+                    <option value="">Sin Zona</option>
+                    {Array.from({ length: 33 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={String(n)}>{n}</option>
+                    ))}
+                  </select>
+                </label>
+                <div className="field-label">
+                  <span>Zona extranjero</span>
+                  <div className="flex items-center gap-3">
+                    <select
+                      className="field-input"
+                      value={foreignZone}
+                      onChange={(e) => setForeignZone(e.target.value)}
+                    >
+                      <option value="">Sin zona extranjero</option>
+                      {IEP_FOREIGN_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.name}</option>
+                      ))}
+                    </select>
+                    {foreignZone && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`https://flagcdn.com/w160/${foreignZone.toLowerCase()}.png`}
+                        alt={foreignZone}
+                        className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <label className="field-label">
             Estado

@@ -8,7 +8,8 @@ const churchSchema = z.object({
   region:  z.string().optional(),
   commune: z.string().optional(),
   address: z.string().optional(),
-  phone:   z.string().optional()
+  phone:   z.string().optional(),
+  zone:    z.string().optional(),
 });
 
 function assertCanEdit(profile: CallerProfile, country: string | null | undefined, reply: any) {
@@ -37,7 +38,7 @@ export const churchRoutes: FastifyPluginAsync = async (app) => {
     let dbQuery = app.supabaseAdmin
       .schema("core")
       .from("churches")
-      .select("id, code, name, city, address, phone, country, region, commune", { count: "exact" })
+      .select("id, code, name, city, address, phone, country, region, commune, zone", { count: "exact" })
       .order("name", { ascending: true });
 
     if (query.search) dbQuery = dbQuery.ilike("name", `%${query.search}%`);

@@ -12,6 +12,10 @@ const inter = Inter({
 export const metadata = {
   title: "Plataforma de Gestión Pastoral",
   description: "Plataforma institucional de gestión pastoral",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }) {

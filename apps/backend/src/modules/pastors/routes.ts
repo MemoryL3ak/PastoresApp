@@ -13,7 +13,9 @@ const createPastorSchema = z.object({
   degree_title: z.string().nullable().optional(),
   photo_url: z.string().nullable().optional(),
   expiry_date: z.string().nullable().optional(),
-  country: z.string().nullable().optional()
+  country: z.string().nullable().optional(),
+  zone: z.string().nullable().optional(),
+  foreign_zone: z.string().nullable().optional(),
 });
 
 function assertCanEdit(profile: CallerProfile, country: string | null | undefined, reply: any) {
@@ -41,7 +43,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
 
     const caller = request.callerProfile;
     const offset = (query.page - 1) * query.limit;
-    const SELECT = "id, first_name, last_name, document_number, email, phone, pastoral_status, degree_title, photo_url, expiry_date, church_id, country, churches(id, name, country)";
+    const SELECT = "id, first_name, last_name, document_number, email, phone, pastoral_status, degree_title, photo_url, expiry_date, church_id, country, zone, foreign_zone, churches(id, name, country)";
 
     let dbQuery = app.supabaseAdmin
       .schema("core")

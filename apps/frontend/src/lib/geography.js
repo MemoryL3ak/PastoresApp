@@ -7,6 +7,8 @@
 export const COUNTRIES = [
   { code: "CL", name: "Chile" },
   { code: "AR", name: "Argentina" },
+  { code: "AO", name: "Angola" },
+  { code: "AU", name: "Australia" },
   { code: "BO", name: "Bolivia" },
   { code: "BR", name: "Brasil" },
   { code: "CO", name: "Colombia" },
@@ -15,6 +17,8 @@ export const COUNTRIES = [
   { code: "DO", name: "República Dominicana" },
   { code: "EC", name: "Ecuador" },
   { code: "SV", name: "El Salvador" },
+  { code: "ES", name: "España" },
+  { code: "US", name: "Estados Unidos" },
   { code: "GT", name: "Guatemala" },
   { code: "HN", name: "Honduras" },
   { code: "MX", name: "México" },
@@ -23,11 +27,35 @@ export const COUNTRIES = [
   { code: "PY", name: "Paraguay" },
   { code: "PE", name: "Perú" },
   { code: "PR", name: "Puerto Rico" },
+  { code: "SE", name: "Suecia" },
   { code: "UY", name: "Uruguay" },
   { code: "VE", name: "Venezuela" },
-  { code: "US", name: "Estados Unidos" },
-  { code: "ES", name: "España" },
   { code: "OTHER", name: "Otro" },
+];
+
+/**
+ * Countries of the IEP presbyter banner — used in pastor/church country selectors.
+ * Matches PRESBYTER_COUNTRIES in credentialShared.js (alphabetical by name).
+ */
+export const IEP_COUNTRIES = [
+  { code: "AO", name: "Angola" },
+  { code: "AR", name: "Argentina" },
+  { code: "AU", name: "Australia" },
+  { code: "BO", name: "Bolivia" },
+  { code: "BR", name: "Brasil" },
+  { code: "CL", name: "Chile" },
+  { code: "CR", name: "Costa Rica" },
+  { code: "EC", name: "Ecuador" },
+  { code: "SV", name: "El Salvador" },
+  { code: "ES", name: "España" },
+  { code: "US", name: "Estados Unidos" },
+  { code: "MX", name: "México" },
+  { code: "PA", name: "Panamá" },
+  { code: "PY", name: "Paraguay" },
+  { code: "PE", name: "Perú" },
+  { code: "SE", name: "Suecia" },
+  { code: "UY", name: "Uruguay" },
+  { code: "VE", name: "Venezuela" },
 ];
 
 /** Nombre del documento de identidad por país + placeholder de ejemplo */

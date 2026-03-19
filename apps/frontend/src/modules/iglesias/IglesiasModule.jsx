@@ -5,11 +5,11 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { useChurches, invalidateChurches } from "@/lib/hooks";
 import { useToast } from "@/context/ToastContext";
-import { COUNTRIES, getRegions, getCommunes } from "@/lib/geography";
+import { IEP_COUNTRIES, COUNTRIES, getRegions, getCommunes } from "@/lib/geography";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useAuth } from "@/context/AuthContext";
 
-const emptyForm  = { name: "", country: "", region: "", commune: "", address: "", phone: "" };
+const emptyForm  = { name: "", country: "", region: "", commune: "", address: "", phone: "", zone: "" };
 const PAGE_SIZE  = 50;
 
 function useDebounce(value, delay = 400) {
@@ -63,7 +63,7 @@ export default function IglesiasModule() {
 
   const startEdit = (church) => {
     setEditingId(church.id);
-    setForm({ name: church.name ?? "", country: church.country ?? "", region: church.region ?? "", commune: church.commune ?? "", address: church.address ?? "", phone: church.phone ?? "" });
+    setForm({ name: church.name ?? "", country: church.country ?? "", region: church.region ?? "", commune: church.commune ?? "", address: church.address ?? "", phone: church.phone ?? "", zone: church.zone ?? "" });
   };
 
   const regions    = getRegions(form.country);
@@ -101,11 +101,11 @@ export default function IglesiasModule() {
                 <div className="flex items-center gap-3">
                   <select className="field-input" value={form.country} onChange={(e) => set("country", e.target.value)}>
                     <option value="">Seleccionar país...</option>
-                    {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                    {IEP_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
                   </select>
                   {form.country && (
                     <img src={`https://flagcdn.com/w320/${form.country.toLowerCase()}.png`}
-                      alt={COUNTRIES.find((c) => c.code === form.country)?.name}
+                      alt={IEP_COUNTRIES.find((c) => c.code === form.country)?.name}
                       className="w-14 h-10 rounded object-cover ring-1 ring-slate-200 flex-shrink-0" />
                   )}
                 </div>
@@ -142,6 +142,11 @@ export default function IglesiasModule() {
                 Teléfono
                 <input className="field-input" placeholder="Ej: +56 9 1234 5678" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
               </label>
+
+              <label className="field-label">
+                Zona
+                <input className="field-input" placeholder="Ej: Zona Norte" value={form.zone} onChange={(e) => set("zone", e.target.value)} />
+              </label>
             </div>
             <div className="flex items-center gap-3 mt-6 pt-5 border-t border-slate-100">
               <button type="submit" className="btn-primary">{editingId ? "Actualizar iglesia" : "Crear iglesia"}</button>
@@ -155,7 +160,7 @@ export default function IglesiasModule() {
         <table className="table">
           <thead>
             <tr>
-              <th>Nombre</th><th>País</th><th>Región</th><th>Comuna</th><th>Teléfono</th>
+              <th>Nombre</th><th>País</th><th>Región</th><th>Comuna</th><th>Zona</th><th>Teléfono</th>
               {canEdit && <th style={{ width: 80 }}></th>}
             </tr>
           </thead>
@@ -163,7 +168,7 @@ export default function IglesiasModule() {
             {isLoading && churches.length === 0
               ? Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {[160, 100, 120, 100, 80, 60].map((w, j) => (
+                    {[160, 100, 120, 100, 90, 80, 60].map((w, j) => (
                       <td key={j}><div className="h-4 rounded bg-slate-200 animate-pulse" style={{ width: w }} /></td>
                     ))}
                   </tr>
@@ -181,6 +186,7 @@ export default function IglesiasModule() {
                       </td>
                       <td className="text-slate-500">{church.region ?? "—"}</td>
                       <td className="text-slate-500">{church.commune ?? "—"}</td>
+                      <td className="text-slate-500">{church.zone ?? "—"}</td>
                       <td className="text-slate-500">{church.phone ?? "—"}</td>
                       {canEdit && (
                         <td>
@@ -194,7 +200,7 @@ export default function IglesiasModule() {
                   );
                 })}
             {!isLoading && churches.length === 0 && (
-              <tr><td colSpan={6} className="py-12 text-center text-sm text-slate-400">No hay iglesias registradas.</td></tr>
+              <tr><td colSpan={7} className="py-12 text-center text-sm text-slate-400">No hay iglesias registradas.</td></tr>
             )}
           </tbody>
         </table>

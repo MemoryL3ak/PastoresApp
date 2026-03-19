@@ -68,6 +68,8 @@ export default function PastoresModule() {
     fechaVencimiento: pastor.expiry_date ?? "",
     pastorCountry: pastor.country ?? "",
     email: pastor.email ?? "",
+    zone: pastor.zone ?? "",
+    foreignZone: pastor.foreign_zone ?? "",
   }));
 
   // Client-side filter for iglesia + country (server handles name/status)
@@ -98,6 +100,8 @@ export default function PastoresModule() {
       expiry_date:     pastorData.fechaVencimiento || null,
       country:         pastorData.pastorCountry || null,
       email:           pastorData.email || null,
+      zone:            pastorData.zone || null,
+      foreign_zone:    pastorData.foreignZone || null,
     };
     try {
       if (pastorData.id) { await api.updatePastor(pastorData.id, payload); }
