@@ -18,7 +18,7 @@ declare module "fastify" {
 const PUBLIC_PATHS = new Set(["/v1/health"]);
 
 export const authPlugin = fp(async (app) => {
-  app.decorateRequest("callerProfile", null);
+  app.decorateRequest("callerProfile", null as unknown as CallerProfile);
 
   app.addHook("preHandler", async (request: FastifyRequest, reply: FastifyReply) => {
     if (PUBLIC_PATHS.has(request.url.split("?")[0])) return;
