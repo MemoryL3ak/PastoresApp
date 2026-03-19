@@ -95,25 +95,36 @@ export default function PlatformShell({ children }) {
 
       {/* ── Sidebar ─────────────────────────────── */}
       <aside
-        style={{ width: isMobile ? undefined : collapsed ? 72 : 240 }}
+        style={{
+          width: isMobile ? undefined : collapsed ? 72 : 240,
+          background: "linear-gradient(160deg, #1a3f7a 0%, #1e4d8c 45%, #2563b0 100%)",
+        }}
         className={[
-          "z-30 flex flex-shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-200 ease-in-out overflow-hidden",
+          "relative z-30 flex flex-shrink-0 flex-col transition-[width] duration-200 ease-in-out overflow-hidden",
           isMobile
             ? `fixed inset-y-0 left-0 w-60 ${mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"} transition-transform duration-200`
             : "",
         ].join(" ")}
       >
+        {/* Orbes decorativos del sidebar */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div style={{ position: "absolute", top: "-60px", right: "-60px", width: 200, height: 200, borderRadius: "50%", background: "#3b82f6", opacity: 0.12, animation: "sideOrb1 12s ease-in-out infinite", filter: "blur(40px)" }} />
+          <div style={{ position: "absolute", bottom: "60px", left: "-40px", width: 160, height: 160, borderRadius: "50%", background: "#22d3ee", opacity: 0.09, animation: "sideOrb2 15s ease-in-out infinite", filter: "blur(35px)" }} />
+          {/* Shimmer */}
+          <div style={{ position: "absolute", top: "-50%", left: "-120%", width: "50%", height: "200%", background: "linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%)", animation: "shimmer 10s ease-in-out infinite 3s", transform: "skewX(-15deg)" }} />
+        </div>
+
         {/* Brand */}
-        <div className={`flex h-20 items-center gap-3 border-b border-slate-100 flex-shrink-0 ${collapsed && !isMobile ? "justify-center px-2" : "px-5"}`}>
+        <div className={`relative flex h-20 items-center gap-3 border-b border-white/10 flex-shrink-0 ${collapsed && !isMobile ? "justify-center px-2" : "px-5"}`}>
           <img
             src="/logo.png"
             alt="Logo"
-            className={`object-contain flex-shrink-0 ${collapsed && !isMobile ? "h-12 w-12" : "h-16 w-16"}`}
+            className={`object-contain flex-shrink-0 drop-shadow-md ${collapsed && !isMobile ? "h-12 w-12" : "h-16 w-16"}`}
           />
           {(!collapsed || isMobile) && (
             <div className="min-w-0 overflow-hidden">
-              <p className="truncate text-sm font-bold text-slate-900 leading-none">Gestión Pastoral</p>
-              <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              <p className="truncate text-sm font-bold text-white leading-none">Gestión Pastoral</p>
+              <p className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-widest text-blue-200/70">
                 Plataforma
               </p>
             </div>
@@ -121,7 +132,7 @@ export default function PlatformShell({ children }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-0.5">
+        <nav className="relative flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-0.5">
           {visibleMenu.map((item) => {
             const Icon = item.icon;
             const active =
@@ -132,11 +143,12 @@ export default function PlatformShell({ children }) {
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 onClick={() => setMobileOpen(false)}
+                style={active ? { boxShadow: "0 0 16px rgba(255,255,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.12)" } : undefined}
                 className={[
-                  "flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-colors duration-150 group whitespace-nowrap",
+                  "flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all duration-150 group whitespace-nowrap",
                   active
-                    ? "bg-brand-50 text-brand-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                    ? "bg-white/15 text-white"
+                    : "text-white/65 hover:bg-white/10 hover:text-white",
                 ].join(" ")}
               >
                 <Icon
@@ -144,8 +156,8 @@ export default function PlatformShell({ children }) {
                   className={[
                     "flex-shrink-0 transition-colors",
                     active
-                      ? "text-brand-600"
-                      : "text-slate-400 group-hover:text-slate-600",
+                      ? "text-white"
+                      : "text-white/50 group-hover:text-white/80",
                   ].join(" ")}
                 />
                 {(!collapsed || isMobile) && (
@@ -158,12 +170,12 @@ export default function PlatformShell({ children }) {
 
         {/* Collapse toggle (desktop only) */}
         {!isMobile && (
-          <div className="border-t border-slate-100 p-3 flex-shrink-0">
+          <div className="relative border-t border-white/10 p-3 flex-shrink-0">
             <button
               type="button"
               onClick={() => setCollapsed((prev) => !prev)}
               title={collapsed ? "Expandir menú" : "Contraer menú"}
-              className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
             >
               {collapsed ? (
                 <ChevronRight size={16} className="flex-shrink-0" />
@@ -181,7 +193,7 @@ export default function PlatformShell({ children }) {
       {/* ── Main ──────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-5 gap-4">
+        <header className="flex h-16 flex-shrink-0 items-center justify-between bg-white px-3 sm:px-5 gap-4" style={{ borderBottom: "2px solid #ddeaf8", boxShadow: "0 1px 0 #b8d4f0" }}>
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -199,8 +211,8 @@ export default function PlatformShell({ children }) {
           <div className="flex items-center gap-2 flex-shrink-0">
             {profile && (
               <div className="flex items-center gap-2 mr-1">
-                <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-brand-700">
+                <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #2563b0, #1e4d8c)" }}>
+                  <span className="text-xs font-bold text-white">
                     {profile.full_name?.charAt(0)?.toUpperCase() ?? "U"}
                   </span>
                 </div>

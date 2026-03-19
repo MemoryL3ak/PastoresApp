@@ -236,59 +236,100 @@ export default function LoginPage() {
 
         {/* Left panel */}
         <div className="lg:w-1/2 relative flex flex-col justify-between overflow-hidden p-12 text-white"
-          style={{ background: "linear-gradient(135deg, #2563b0 0%, #1e4d8c 40%, #1a3f7a 100%)" }}>
+          style={{ background: "linear-gradient(145deg, #0f2d5c 0%, #1a4080 28%, #1e5caa 60%, #2d7dd6 100%)" }}>
 
-          <div className="pointer-events-none absolute inset-0" style={{ animation: "gradShift 12s ease-in-out infinite alternate" }} />
+          {/* Animated gradient overlay */}
+          <div className="pointer-events-none absolute inset-0" style={{ animation: "gradShift 10s ease-in-out infinite alternate" }} />
 
+          {/* Orbes de colores */}
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -top-32 -left-32 h-[480px] w-[480px] rounded-full bg-white opacity-20 blur-2xl"
-              style={{ animation: "float1 9s ease-in-out infinite" }} />
-            <div className="absolute top-1/2 -right-40 h-[420px] w-[420px] rounded-full bg-white opacity-[0.13] blur-2xl"
-              style={{ animation: "float2 11s ease-in-out infinite" }} />
-            <div className="absolute -bottom-28 left-1/4 h-[360px] w-[360px] rounded-full bg-white opacity-[0.08] blur-2xl"
-              style={{ animation: "float3 13s ease-in-out infinite" }} />
-            <div className="absolute top-1/3 left-1/3 h-[220px] w-[220px] rounded-full bg-blue-300 opacity-[0.07] blur-3xl"
-              style={{ animation: "float2 7s ease-in-out infinite reverse" }} />
+            {/* Cyan top-right */}
+            <div className="absolute -top-20 -right-20 h-[420px] w-[420px] rounded-full blur-3xl"
+              style={{ background: "#22d3ee", opacity: 0.20, animation: "float1 9s ease-in-out infinite" }} />
+            {/* Azul brillante bottom-left */}
+            <div className="absolute -bottom-24 -left-16 h-[400px] w-[400px] rounded-full blur-3xl"
+              style={{ background: "#3b82f6", opacity: 0.24, animation: "float2 11s ease-in-out infinite" }} />
+            {/* Índigo mid */}
+            <div className="absolute top-1/3 left-1/2 h-[300px] w-[300px] rounded-full blur-3xl"
+              style={{ background: "#818cf8", opacity: 0.16, animation: "float3 13s ease-in-out infinite" }} />
+            {/* Blanco suave */}
+            <div className="absolute top-1/4 left-1/4 h-[200px] w-[200px] rounded-full bg-white blur-3xl"
+              style={{ opacity: 0.09, animation: "float2 7s ease-in-out infinite reverse" }} />
           </div>
 
-          <div className="pointer-events-none absolute inset-0 opacity-[0.10]"
+          {/* Dot grid */}
+          <div className="pointer-events-none absolute inset-0"
             style={{
-              backgroundImage: "radial-gradient(circle, white 1.5px, transparent 1.5px)",
+              opacity: 0.13,
+              backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.9) 1.5px, transparent 1.5px)",
               backgroundSize: "28px 28px",
               animation: "driftGrid 30s linear infinite",
             }}
           />
 
-          <div className="relative flex items-center gap-3" style={{ animation: "fadeUp 0.8s ease-out both" }}>
-            <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain drop-shadow-lg"
-              style={{ animation: "logoSpin 8s ease-in-out infinite" }} />
-            <span className="text-lg font-bold tracking-tight">Plataforma de Gestión Pastoral</span>
+          {/* Shimmer sweep */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div style={{
+              position: "absolute",
+              top: "-50%", left: "-120%",
+              width: "55%", height: "200%",
+              background: "linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%)",
+              animation: "shimmer 8s ease-in-out infinite 1.5s",
+              transform: "skewX(-15deg)",
+            }} />
           </div>
 
+          {/* Logo con glow */}
+          <div className="relative flex items-center gap-4" style={{ animation: "fadeUp 0.8s ease-out both" }}>
+            <div style={{ borderRadius: "50%", padding: 4, background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)", animation: "pulseRing 3s ease-out infinite" }}>
+              <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain drop-shadow-2xl" />
+            </div>
+            <span className="text-lg font-bold tracking-tight drop-shadow">Plataforma de Gestión Pastoral</span>
+          </div>
+
+          {/* Heading vibrante */}
           <div className="relative" style={{ animation: "fadeUp 0.9s ease-out 0.15s both" }}>
-            <h1 className="text-4xl font-bold leading-tight mb-4">Gestión pastoral</h1>
+            <h1 className="text-5xl font-extrabold leading-tight tracking-tight mb-3 drop-shadow">
+              Gestión <span style={{ color: "#93c5fd" }}>pastoral</span>
+            </h1>
+            <div style={{ width: 64, height: 4, borderRadius: 2, background: "linear-gradient(90deg, #60a5fa, #22d3ee)", marginBottom: 18 }} />
             <p className="text-blue-200 text-lg leading-relaxed max-w-sm">
               Administra iglesias, pastores, credenciales y eventos de nuestra misión.
             </p>
           </div>
 
-          <div className="relative flex items-center gap-3 text-sm text-blue-300"
-            style={{ animation: "fadeUp 1s ease-out 0.3s both" }}>
+          <div className="relative flex items-center gap-3 text-sm"
+            style={{ color: "#93c5fd", animation: "fadeUp 1s ease-out 0.3s both" }}>
             <ShieldCheck size={16} />
             Acceso restringido a usuarios autorizados
           </div>
         </div>
 
         {/* Right panel — form */}
-        <div className="flex flex-1 flex-col justify-center items-center px-8 py-12 bg-slate-50">
-          <div className="w-full max-w-sm">
-            <div className="flex items-center gap-3 mb-10">
-              <img src="/logo.png" alt="Logo" className="h-14 w-14 object-contain flex-shrink-0" />
-            </div>
+        <div className="relative flex flex-1 flex-col justify-center items-center px-8 py-12 overflow-hidden"
+          style={{ background: "linear-gradient(160deg, #f0f6ff 0%, #e8f0fe 40%, #f5f8ff 100%)" }}>
 
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-slate-900">Iniciar sesión</h2>
-              <p className="mt-1.5 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
+          {/* Orbes de fondo muy sutiles */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-16 -right-16 h-64 w-64 rounded-full blur-3xl"
+              style={{ background: "#bfdbfe", opacity: 0.55, animation: "float1 11s ease-in-out infinite" }} />
+            <div className="absolute -bottom-20 -left-12 h-56 w-56 rounded-full blur-3xl"
+              style={{ background: "#dbeafe", opacity: 0.65, animation: "float2 14s ease-in-out infinite" }} />
+            <div className="absolute top-1/2 right-1/4 h-40 w-40 rounded-full blur-3xl"
+              style={{ background: "#e0e7ff", opacity: 0.50, animation: "float3 9s ease-in-out infinite" }} />
+          </div>
+
+          <div className="relative w-full max-w-sm">
+            {/* Card elevada */}
+            <div className="rounded-3xl bg-white/80 border border-blue-100 shadow-xl shadow-blue-100/40 px-8 py-9"
+              style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
+
+            <div className="flex items-center gap-3 mb-8">
+              <img src="/logo.png" alt="Logo" className="h-12 w-12 object-contain flex-shrink-0 drop-shadow" />
+              <div>
+                <h2 className="text-xl font-bold text-brand-800 leading-tight">Iniciar sesión</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Ingresa tus credenciales para continuar</p>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -356,7 +397,8 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-          </div>
+            </div>{/* /card */}
+          </div>{/* /relative max-w-sm */}
         </div>
       </div>
     </>
