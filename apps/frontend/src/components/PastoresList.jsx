@@ -43,19 +43,19 @@ export default function PastoresList({
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3">
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
           <input type="text" className="field-input pl-9" placeholder="Buscar por nombre..."
             value={searchName} onChange={(e) => onSearchName(e.target.value)} />
         </div>
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
           <input type="text" className="field-input pl-9" placeholder="Buscar por iglesia..."
             value={searchIglesia} onChange={(e) => onSearchIglesia(e.target.value)} />
         </div>
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
           <input type="text" className="field-input pl-9" placeholder="Buscar por país..."
             value={searchCountry} onChange={(e) => onSearchCountry(e.target.value)} />
         </div>

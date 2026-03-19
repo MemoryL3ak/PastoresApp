@@ -205,9 +205,12 @@ export default function PlatformShell({ children }) {
             >
               {isMobile && mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            <h1 className="text-base font-semibold text-slate-900 truncate">
-              {pageTitle}
-            </h1>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="hidden sm:block w-[3px] h-5 rounded-full flex-shrink-0" style={{ background: "linear-gradient(180deg, #2563b0, #22d3ee)" }} />
+              <h1 className="text-base font-semibold text-brand-800 truncate">
+                {pageTitle}
+              </h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
