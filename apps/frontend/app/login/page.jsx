@@ -305,7 +305,7 @@ export default function LoginPage() {
 
         {/* Right panel — form */}
         <div className="relative flex flex-1 flex-col justify-center items-center px-8 py-12 overflow-hidden"
-          style={{ background: "linear-gradient(160deg, #f0f6ff 0%, #e8f0fe 40%, #f5f8ff 100%)" }}>
+          style={{ background: "linear-gradient(160deg, #ddeaf8 0%, #c8dcf5 40%, #d8ecff 100%)" }}>
 
           {/* Orbes de fondo muy sutiles */}
           <div className="pointer-events-none absolute inset-0">
@@ -319,8 +319,8 @@ export default function LoginPage() {
 
           <div className="relative w-full max-w-md">
             {/* Card elevada */}
-            <div className="rounded-3xl bg-white/80 border border-blue-100 shadow-xl shadow-blue-100/40 px-10 py-10"
-              style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
+            <div className="rounded-3xl border border-blue-200/60 shadow-xl shadow-blue-200/30 px-10 py-10"
+              style={{ background: "rgba(224,240,255,0.55)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
 
             <div className="flex items-center gap-3 mb-8">
               <img src="/logo.png" alt="Logo" className="h-12 w-12 object-contain flex-shrink-0 drop-shadow" />
