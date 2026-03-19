@@ -106,14 +106,6 @@ export default function PlatformShell({ children }) {
             : "",
         ].join(" ")}
       >
-        {/* Orbes decorativos del sidebar */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div style={{ position: "absolute", top: "-60px", right: "-60px", width: 200, height: 200, borderRadius: "50%", background: "#3b82f6", opacity: 0.12, animation: "sideOrb1 12s ease-in-out infinite", filter: "blur(40px)" }} />
-          <div style={{ position: "absolute", bottom: "60px", left: "-40px", width: 160, height: 160, borderRadius: "50%", background: "#22d3ee", opacity: 0.09, animation: "sideOrb2 15s ease-in-out infinite", filter: "blur(35px)" }} />
-          {/* Shimmer */}
-          <div style={{ position: "absolute", top: "-50%", left: "-120%", width: "50%", height: "200%", background: "linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%)", animation: "shimmer 10s ease-in-out infinite 3s", transform: "skewX(-15deg)" }} />
-        </div>
-
         {/* Brand */}
         <div className={`relative flex h-20 items-center gap-3 border-b border-white/10 flex-shrink-0 ${collapsed && !isMobile ? "justify-center px-2" : "px-5"}`}>
           <img
