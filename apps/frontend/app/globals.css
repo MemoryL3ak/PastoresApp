@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@media print {
+  .no-print { display: none !important; }
+  nav, header, aside, footer { display: none !important; }
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
@@ -71,11 +76,11 @@
 
   /* ── Cards / Panels ──────────────────────────── */
   .card {
-    @apply bg-white rounded-2xl border border-slate-200 p-6 shadow-sm;
+    @apply bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm;
   }
 
   .panel {
-    @apply bg-white rounded-2xl border border-slate-200 p-5 shadow-sm;
+    @apply bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm;
   }
 
   /* ── Badges ──────────────────────────────────── */
@@ -129,16 +134,16 @@
   }
 
   .table-wrapper {
-    @apply overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm;
+    @apply overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm;
   }
 
   /* ── Page layout ─────────────────────────────── */
   .view-title {
-    @apply text-2xl font-bold text-slate-900;
+    @apply text-xl sm:text-2xl font-bold text-slate-900;
   }
 
   .view-header {
-    @apply flex items-center justify-between mb-6;
+    @apply flex flex-wrap items-center justify-between gap-3 mb-6;
   }
 
   .page-main {
@@ -152,7 +157,7 @@
 
   /* ── Tabs ────────────────────────────────────── */
   .tab-bar {
-    @apply flex gap-1 rounded-xl bg-slate-100 p-1 w-fit;
+    @apply flex gap-1 rounded-xl bg-slate-100 p-1 w-full sm:w-fit overflow-x-auto;
   }
 
   .tab-item {

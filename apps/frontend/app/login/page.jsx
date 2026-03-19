@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
@@ -22,13 +22,20 @@ function translateError(message = "") {
 }
 
 export default function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, session, loading: authLoading } = useAuth();
   const router = useRouter();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+
+  // Already authenticated → go straight to dashboard
+  useEffect(() => {
+    if (!authLoading && session) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, session, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -88,7 +95,7 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel — form ──────────────────────────────────── */}
-      <div className="flex flex-1 flex-col justify-center items-center px-6 py-12 bg-slate-50">
+      <div className="flex flex-1 flex-col justify-center items-center px-5 py-10 sm:px-8 sm:py-12 bg-slate-50">
         <div className="w-full max-w-sm">
           <div className="flex items-center gap-3 mb-10">
             <img src="/logo.png" alt="Logo" className="h-14 w-14 object-contain flex-shrink-0" />

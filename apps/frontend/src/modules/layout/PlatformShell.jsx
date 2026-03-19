@@ -181,7 +181,7 @@ export default function PlatformShell({ children }) {
       {/* ── Main ──────────────────────────────────── */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5 gap-4">
+        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 sm:px-5 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
@@ -222,7 +222,7 @@ export default function PlatformShell({ children }) {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl p-6 lg:p-8">
+          <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
             {children}
           </div>
         </main>
