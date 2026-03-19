@@ -42,11 +42,11 @@ const TEMPLATES = [
 const VISIBLE_TEMPLATES = TEMPLATES.filter((t) => !t.hidden);
 const EDITOR_SCALE = 0.72;
 
-/* ── localStorage helpers ── */
+/* ── localStorage helpers (v2 keys — discards any pre-v2 stored layouts) ── */
 function loadLayout(templateId) {
   if (typeof window === "undefined") return defaultLayout(templateId);
   try {
-    const stored = localStorage.getItem(`credential_layout_${templateId}`);
+    const stored = localStorage.getItem(`credential_layout_v2_${templateId}`);
     if (stored) return JSON.parse(stored);
   } catch { /* ignore */ }
   return defaultLayout(templateId);
@@ -55,7 +55,7 @@ function loadLayout(templateId) {
 function loadBackLayout(templateId) {
   if (typeof window === "undefined") return defaultBackLayout(templateId);
   try {
-    const stored = localStorage.getItem(`credential_back_layout_${templateId}`);
+    const stored = localStorage.getItem(`credential_back_layout_v2_${templateId}`);
     if (stored) return JSON.parse(stored);
   } catch { /* ignore */ }
   return defaultBackLayout(templateId);
@@ -174,7 +174,7 @@ function TemplateEditorTab({
   function handleFrontUpdate(key, el) {
     setLayout((prev) => {
       const next = { ...prev, [key]: el };
-      localStorage.setItem(`credential_layout_${templateId}`, JSON.stringify(next));
+      localStorage.setItem(`credential_layout_v2_${templateId}`, JSON.stringify(next));
       return next;
     });
   }
@@ -183,7 +183,7 @@ function TemplateEditorTab({
   function handleBackUpdate(key, el) {
     setBackLayout((prev) => {
       const next = { ...prev, [key]: el };
-      localStorage.setItem(`credential_back_layout_${templateId}`, JSON.stringify(next));
+      localStorage.setItem(`credential_back_layout_v2_${templateId}`, JSON.stringify(next));
       return next;
     });
   }
@@ -200,11 +200,11 @@ function TemplateEditorTab({
     if (editFace === "front") {
       const def = defaultLayout(templateId);
       setLayout(def);
-      localStorage.setItem(`credential_layout_${templateId}`, JSON.stringify(def));
+      localStorage.setItem(`credential_layout_v2_${templateId}`, JSON.stringify(def));
     } else {
       const def = defaultBackLayout(templateId);
       setBackLayout(def);
-      localStorage.setItem(`credential_back_layout_${templateId}`, JSON.stringify(def));
+      localStorage.setItem(`credential_back_layout_v2_${templateId}`, JSON.stringify(def));
     }
     setSelectedEl(null);
   }
@@ -705,9 +705,9 @@ const CARD_H = 408;
 
 export default function CredencialesPage() {
   const [activeTab, setActiveTab] = useState("editor"); // "editor" | "print"
-  const [templateId, setTemplateId] = useState("elite");
-  const [layout, setLayout] = useState(() => loadLayout("elite"));
-  const [backLayout, setBackLayout] = useState(() => loadBackLayout("elite"));
+  const [templateId, setTemplateId] = useState("elite-azul");
+  const [layout, setLayout] = useState(() => loadLayout("elite-azul"));
+  const [backLayout, setBackLayout] = useState(() => loadBackLayout("elite-azul"));
   const [superintendent, setSuperintendente] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("super_name") || "" : ""
   );

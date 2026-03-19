@@ -1,9 +1,9 @@
 // src/components/PastorForm.jsx
-import { useEffect, useRef, useState } from "react";
+"use client";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, FileDown, Save, UserCircle2, Upload, X, ChevronDown, Search } from "lucide-react";
-import { getActiveTemplate } from "../credentialTemplatesStorage";
-import { generateCredentialPdf } from "../generateCredentialPdf";
 import { IEP_COUNTRIES, getDocumentInfo } from "../lib/geography";
+import CredentialEditorCanvas, { defaultLayout, defaultBackLayout } from "@/components/CredentialEditorCanvas";
 
 const IEP_FOREIGN_COUNTRIES = IEP_COUNTRIES.filter((c) => c.code !== "CL");
 import { useToast } from "../context/ToastContext";
@@ -150,31 +150,43 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
     reader.readAsDataURL(file);
   };
 
-  const handleGeneratePdf = async () => {
-    const tpl = getActiveTemplate();
-    if (!tpl) {
-      alert("No hay plantilla activa. Ve a Configuración → Plantillas de credenciales y marca una como activa.");
-      return;
-    }
-    const pastorData = {
-      id: pastor?.id,
-      fullName: nombre,
-      nombre,
-      rut,
-      iglesia: churches.find((c) => c.id === churchId)?.name ?? "",
-      degreeTitle,
-      estado,
-      photoUrl,
-      countryImageUrl: flagUrl,
-      fechaVencimiento,
-    };
+  // Load credential layout and superintendent from localStorage (elite-azul template)
+  const credLayout = useMemo(() => {
+    if (typeof window === "undefined") return defaultLayout("elite-azul");
     try {
-      await generateCredentialPdf(tpl, pastorData);
-      toast("Credencial descargada correctamente");
-    } catch (e) {
-      console.error(e);
-      alert("Ocurrió un error al generar la credencial.");
-    }
+      const stored = localStorage.getItem("credential_layout_v2_elite-azul");
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return defaultLayout("elite-azul");
+  }, []);
+
+  const credBackLayout = useMemo(() => {
+    if (typeof window === "undefined") return defaultBackLayout("elite-azul");
+    try {
+      const stored = localStorage.getItem("credential_back_layout_v2_elite-azul");
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return defaultBackLayout("elite-azul");
+  }, []);
+
+  const credSuperintendent = typeof window !== "undefined" ? localStorage.getItem("super_name") || "" : "";
+  const credSignatureUrl   = typeof window !== "undefined" ? localStorage.getItem("super_signature") || null : null;
+
+  const pastorForCredential = {
+    full_name:       nombre,
+    document_number: rut,
+    degree_title:    degreeTitle,
+    churches:        { name: churches.find((c) => c.id === churchId)?.name ?? "" },
+    country:         pastorCountry,
+    photo_url:       photoUrl,
+    expiry_date:     fechaVencimiento,
+  };
+
+  const handlePrint = () => {
+    const prev = document.title;
+    document.title = "Credencial IEP";
+    window.print();
+    document.title = prev;
   };
 
   const handleSave = () => {
@@ -182,6 +194,38 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
   };
 
   return (
+    <>
+    {/* ── Print-only credential area ── */}
+    <style>{`
+      @media print {
+        body * { visibility: hidden; }
+        #credential-print-area-pastor,
+        #credential-print-area-pastor * { visibility: visible; }
+        #credential-print-area-pastor {
+          position: absolute; top: 0; left: 0;
+          display: flex !important; flex-direction: column;
+        }
+        #credential-print-area-pastor > div { page-break-inside: avoid; page-break-after: always; }
+        #credential-print-area-pastor > div:last-child { page-break-after: avoid; }
+        @page { size: 85.60mm 53.98mm; margin: 0; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+      @media screen { #credential-print-area-pastor { display: none; } }
+    `}</style>
+    <div id="credential-print-area-pastor">
+      <CredentialEditorCanvas
+        templateId="elite-azul"
+        pastor={pastorForCredential}
+        superintendent={credSuperintendent}
+        signatureUrl={credSignatureUrl}
+        layout={credLayout}
+        backLayout={credBackLayout}
+        onUpdate={() => {}}
+        onBackUpdate={() => {}}
+        printMode
+      />
+    </div>
+
     <div className="space-y-6">
       {/* Header */}
       <div className="view-header">
@@ -373,11 +417,12 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
           <Save size={15} />
           Guardar
         </button>
-        <button className="btn-secondary" onClick={handleGeneratePdf}>
+        <button className="btn-secondary" onClick={handlePrint}>
           <FileDown size={15} />
-          Generar credencial PDF
+          Imprimir credencial
         </button>
       </div>
     </div>
+    </>
   );
 }

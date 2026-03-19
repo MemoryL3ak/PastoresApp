@@ -167,22 +167,28 @@ function EliteAzulFront({ pastor }) {
           </div>
         </div>
 
-        {/* Right: photo strip with solid blue bg */}
+        {/* Right: photo strip — extends left to eliminate hard boundary seam */}
         <div style={{
-          width: PHOTO_W, flexShrink: 0,
-          background: PHOTO_BG,
+          width: PHOTO_W + 40, marginLeft: -40, flexShrink: 0,
           overflow: "hidden", position: "relative", zIndex: 2,
         }}>
           {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt={name}
-              style={{
-                width: "100%", height: "100%",
-                objectFit: "cover", objectPosition: "top center", display: "block",
-                WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 38%, black 100%)",
-                maskImage: "linear-gradient(to right, transparent 0%, black 38%, black 100%)",
-              }}
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo} alt={name}
+                style={{
+                  position: "absolute", right: 0, top: 0, bottom: 0,
+                  width: PHOTO_W,
+                  objectFit: "cover", objectPosition: "top center", display: "block",
+                }}
+              />
+              <div style={{
+                position: "absolute", inset: 0, pointerEvents: "none",
+                background: "linear-gradient(to right, #ffffff 0%, #ffffff 15%, rgba(255,255,255,0) 55%)",
+                WebkitPrintColorAdjust: "exact",
+                printColorAdjust: "exact",
+              }} />
+            </>
           ) : (
             <div style={{
               width: "100%", height: "100%",

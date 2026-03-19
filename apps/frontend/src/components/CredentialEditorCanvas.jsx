@@ -98,19 +98,35 @@ const THEMES = {
 
 /* ─────────────────────────────────────────────────────────────────────
    Default layouts (pixel coordinates on 648×408 canvas)
+   Coordinates are calculated to match the original flex-centered templates.
+   v2 — bumped to discard any old localStorage layouts.
 ───────────────────────────────────────────────────────────────────── */
 export function defaultLayout(templateId) {
   const th = THEMES[templateId] ?? THEMES.elite;
-  const bodyY = th.topBarH + th.headerH;
   const isAzul = templateId === "elite-azul";
+
+  if (isAzul) {
+    // elite-azul: topBar=0, header=66, footer=32, body=310, padding=12
+    // content height ≈ 124px → top of content at y ≈ 66+12+(286-124)/2 = 159
+    return {
+      logo:    { x: 14, y: 7,   w: 48, h: 48 },
+      name:    { x: 20, y: 159, fontSize: 25, fontWeight: 900, fontFamily: "Arial, sans-serif" },
+      doc:     { x: 20, y: 202, fontSize: 16, fontWeight: 600, fontFamily: "Arial, sans-serif" },
+      title:   { x: 20, y: 224, fontSize: 14, fontWeight: 700, fontFamily: "Arial, sans-serif" },
+      church:  { x: 20, y: 250, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
+      country: { x: 20, y: 268, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
+    };
+  }
+
+  // elite: topBar=5, header=62, footer=32, body=309, padding=10
+  // content height ≈ 125px → top of content at y ≈ 67+10+(289-125)/2 = 159
   return {
-    photo:   { x: CARD_W - PHOTO_W_DEF, y: bodyY, w: PHOTO_W_DEF, h: CARD_H - bodyY - 32 },
     logo:    { x: 14, y: th.topBarH + 7, w: 48, h: 48 },
-    name:    { x: 18, y: bodyY + 14,  fontSize: isAzul ? 25 : 22, fontWeight: 900, fontFamily: "Arial, sans-serif" },
-    doc:     { x: 18, y: bodyY + 73,  fontSize: isAzul ? 16 : 14, fontWeight: 600, fontFamily: "Arial, sans-serif" },
-    title:   { x: 18, y: bodyY + 99,  fontSize: isAzul ? 14 : 12, fontWeight: 700, fontFamily: "Arial, sans-serif" },
-    church:  { x: 18, y: bodyY + 130, fontSize: isAzul ? 13 : 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
-    country: { x: 18, y: bodyY + 153, fontSize: isAzul ? 13 : 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
+    name:    { x: 18, y: 159, fontSize: 22, fontWeight: 900, fontFamily: "Arial, sans-serif" },
+    doc:     { x: 18, y: 202, fontSize: 14, fontWeight: 600, fontFamily: "Arial, sans-serif" },
+    title:   { x: 18, y: 225, fontSize: 12, fontWeight: 700, fontFamily: "Arial, sans-serif" },
+    church:  { x: 18, y: 251, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
+    country: { x: 18, y: 270, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
   };
 }
 
@@ -340,26 +356,45 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         </div>
       </Draggable>
 
-      <Draggable id="photo" el={L.photo} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} canResize scale={scale}>
-        <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "#f0f4f8" }}>
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
+      {/* ── Static photo strip — extends 40px left to eliminate hard boundary ── */}
+      <div style={{
+        position: "absolute",
+        top: th.topBarH + th.headerH,
+        left: CARD_W - PHOTO_W_DEF - 40,
+        right: 0,
+        bottom: 32,
+        zIndex: 2,
+        overflow: "hidden",
+      }}>
+        {photo ? (
+          <>
+            {/* Photo image anchored to the right */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={photo} alt={name} style={{
-              width: "100%", height: "100%", objectFit: "cover",
-              objectPosition: "top center", display: "block",
-              WebkitMaskImage: "linear-gradient(to right,transparent 0%,black 38%,black 100%)",
-              maskImage: "linear-gradient(to right,transparent 0%,black 38%,black 100%)",
+              position: "absolute",
+              right: 0, top: 0, bottom: 0,
+              width: PHOTO_W_DEF,
+              objectFit: "cover",
+              objectPosition: "top center",
+              display: "block",
             }} />
-          ) : (
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2">
-                <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-              </svg>
-              <span style={{ fontSize: 8, color: "rgba(0,0,0,0.3)", textTransform: "uppercase" }}>Foto</span>
-            </div>
-          )}
-        </div>
-      </Draggable>
+            {/* Gradient overlay covering the full div — left 40px is pure white, then fades into photo */}
+            <div style={{
+              position: "absolute", inset: 0, pointerEvents: "none",
+              background: "linear-gradient(to right, #ffffff 0%, #ffffff 12%, rgba(255,255,255,0) 55%)",
+              WebkitPrintColorAdjust: "exact",
+              printColorAdjust: "exact",
+            }} />
+          </>
+        ) : (
+          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: PHOTO_W_DEF, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2">
+              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+            <span style={{ fontSize: 8, color: "rgba(0,0,0,0.3)", textTransform: "uppercase" }}>Foto</span>
+          </div>
+        )}
+      </div>
 
       <Draggable id="name" el={L.name} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
         <div style={{ fontSize: L.name.fontSize, fontWeight: L.name.fontWeight, fontFamily: L.name.fontFamily, color: th.dark, lineHeight: 1.1, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
@@ -628,7 +663,6 @@ export default function CredentialEditorCanvas({
    Controls panel (sidebar) — shared for front and back faces
 ───────────────────────────────────────────────────────────────────── */
 const FRONT_ELEMENT_LABELS = {
-  photo:   "Foto",
   logo:    "Logo",
   name:    "Nombre",
   doc:     "Documento",
