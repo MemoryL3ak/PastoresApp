@@ -55,40 +55,91 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
 
       {/* ── Left panel ─────────────────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between overflow-hidden bg-brand-700 p-12 text-white">
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between overflow-hidden p-12 text-white"
+        style={{ background: "linear-gradient(135deg, #2563b0 0%, #1e4d8c 40%, #1a3f7a 100%)" }}>
 
-        {/* Orbes */}
+        {/* Animated gradient overlay */}
+        <div className="pointer-events-none absolute inset-0" style={{ animation: "gradShift 12s ease-in-out infinite alternate" }} />
+
+        {/* Orbes animados */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-32 -left-32 h-[480px] w-[480px] rounded-full bg-white opacity-20 blur-2xl" />
-          <div className="absolute top-1/2 -right-40 h-[420px] w-[420px] rounded-full bg-white opacity-15 blur-2xl" />
-          <div className="absolute -bottom-28 left-1/4 h-[360px] w-[360px] rounded-full bg-white opacity-10 blur-2xl" />
+          <div className="absolute -top-32 -left-32 h-[480px] w-[480px] rounded-full bg-white opacity-20 blur-2xl"
+            style={{ animation: "float1 9s ease-in-out infinite" }} />
+          <div className="absolute top-1/2 -right-40 h-[420px] w-[420px] rounded-full bg-white opacity-[0.13] blur-2xl"
+            style={{ animation: "float2 11s ease-in-out infinite" }} />
+          <div className="absolute -bottom-28 left-1/4 h-[360px] w-[360px] rounded-full bg-white opacity-[0.08] blur-2xl"
+            style={{ animation: "float3 13s ease-in-out infinite" }} />
+          <div className="absolute top-1/3 left-1/3 h-[220px] w-[220px] rounded-full bg-blue-300 opacity-[0.07] blur-3xl"
+            style={{ animation: "float2 7s ease-in-out infinite reverse" }} />
         </div>
 
-        {/* Grilla de puntos */}
+        {/* Grilla de puntos animada */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.10]"
           style={{
             backgroundImage: "radial-gradient(circle, white 1.5px, transparent 1.5px)",
             backgroundSize: "28px 28px",
+            animation: "driftGrid 30s linear infinite",
           }}
         />
 
+        {/* Keyframes */}
+        <style>{`
+          @keyframes float1 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            33%  { transform: translate(30px, -25px) scale(1.05); }
+            66%  { transform: translate(-20px, 20px) scale(0.97); }
+            100% { transform: translate(0px, 0px) scale(1); }
+          }
+          @keyframes float2 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            50%  { transform: translate(-35px, 30px) scale(1.08); }
+            100% { transform: translate(0px, 0px) scale(1); }
+          }
+          @keyframes float3 {
+            0%   { transform: translate(0px, 0px) scale(1); }
+            40%  { transform: translate(25px, -20px) scale(1.04); }
+            80%  { transform: translate(-15px, 15px) scale(0.96); }
+            100% { transform: translate(0px, 0px) scale(1); }
+          }
+          @keyframes driftGrid {
+            from { background-position: 0px 0px; }
+            to   { background-position: 56px 56px; }
+          }
+          @keyframes gradShift {
+            0%   { background: radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 60%); }
+            50%  { background: radial-gradient(ellipse at 75% 65%, rgba(255,255,255,0.09) 0%, transparent 60%); }
+            100% { background: radial-gradient(ellipse at 40% 80%, rgba(255,255,255,0.05) 0%, transparent 60%); }
+          }
+          @keyframes logoSpin {
+            0%   { transform: rotate(0deg) scale(1); }
+            50%  { transform: rotate(4deg) scale(1.04); }
+            100% { transform: rotate(0deg) scale(1); }
+          }
+          @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+
         {/* Contenido */}
-        <div className="relative flex items-center gap-3">
-          <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain" />
+        <div className="relative flex items-center gap-3" style={{ animation: "fadeUp 0.8s ease-out both" }}>
+          <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain drop-shadow-lg"
+            style={{ animation: "logoSpin 8s ease-in-out infinite" }} />
           <span className="text-lg font-bold tracking-tight">Plataforma de Gestión Pastoral</span>
         </div>
 
-        <div className="relative">
+        <div className="relative" style={{ animation: "fadeUp 0.9s ease-out 0.15s both" }}>
           <h1 className="text-4xl font-bold leading-tight mb-4">
             Gestión pastoral
           </h1>
-          <p className="text-brand-200 text-lg leading-relaxed max-w-sm">
+          <p className="text-blue-200 text-lg leading-relaxed max-w-sm">
             Administra iglesias, pastores, credenciales y eventos de nuestra misión.
           </p>
         </div>
 
-        <div className="relative flex items-center gap-3 text-sm text-brand-300">
+        <div className="relative flex items-center gap-3 text-sm text-blue-300"
+          style={{ animation: "fadeUp 1s ease-out 0.3s both" }}>
           <ShieldCheck size={16} />
           Acceso restringido a usuarios autorizados
         </div>
