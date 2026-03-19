@@ -131,6 +131,9 @@ export default function PlatformShell({ children }) {
           )}
         </div>
 
+        {/* Separador con gradiente */}
+        <div className="mx-4 h-px flex-shrink-0" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)" }} />
+
         {/* Nav */}
         <nav className="relative flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-0.5">
           {visibleMenu.map((item) => {
@@ -143,21 +146,28 @@ export default function PlatformShell({ children }) {
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 onClick={() => setMobileOpen(false)}
-                style={active ? { boxShadow: "0 0 16px rgba(255,255,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.12)" } : undefined}
+                style={active ? {
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(255,255,255,0.14)",
+                  background: "rgba(255,255,255,0.13)",
+                } : undefined}
                 className={[
-                  "flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all duration-150 group whitespace-nowrap",
+                  "relative flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all duration-200 group whitespace-nowrap overflow-hidden",
                   active
-                    ? "bg-white/15 text-white"
-                    : "text-white/65 hover:bg-white/10 hover:text-white",
+                    ? "text-white"
+                    : "text-white/60 hover:bg-white/8 hover:text-white",
                 ].join(" ")}
               >
+                {/* Barra indicadora izquierda */}
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-white/90" />
+                )}
                 <Icon
                   size={18}
                   className={[
                     "flex-shrink-0 transition-colors",
                     active
-                      ? "text-white"
-                      : "text-white/50 group-hover:text-white/80",
+                      ? "text-cyan-300"
+                      : "text-white/45 group-hover:text-white/75",
                   ].join(" ")}
                 />
                 {(!collapsed || isMobile) && (
