@@ -52,12 +52,56 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
+
+      {/* ── Keyframes (global para ambos paneles) ───────────────── */}
+      <style>{`
+        @keyframes float1 {
+          0%   { transform: translate(0px, 0px) scale(1); }
+          33%  { transform: translate(30px, -25px) scale(1.05); }
+          66%  { transform: translate(-20px, 20px) scale(0.97); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes float2 {
+          0%   { transform: translate(0px, 0px) scale(1); }
+          50%  { transform: translate(-35px, 30px) scale(1.08); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes float3 {
+          0%   { transform: translate(0px, 0px) scale(1); }
+          40%  { transform: translate(25px, -20px) scale(1.04); }
+          80%  { transform: translate(-15px, 15px) scale(0.96); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        @keyframes driftGrid {
+          from { background-position: 0px 0px; }
+          to   { background-position: 56px 56px; }
+        }
+        @keyframes gradShift {
+          0%   { background: radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 60%); }
+          50%  { background: radial-gradient(ellipse at 75% 65%, rgba(255,255,255,0.09) 0%, transparent 60%); }
+          100% { background: radial-gradient(ellipse at 40% 80%, rgba(255,255,255,0.05) 0%, transparent 60%); }
+        }
+        @keyframes logoSpin {
+          0%   { transform: rotate(0deg) scale(1); }
+          50%  { transform: rotate(4deg) scale(1.04); }
+          100% { transform: rotate(0deg) scale(1); }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* ── Left panel ─────────────────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between overflow-hidden p-12 text-white"
-        style={{ background: "linear-gradient(135deg, #2563b0 0%, #1e4d8c 40%, #1a3f7a 100%)" }}>
-
+      {/* Mobile: banner compacto en la parte superior            */}
+      {/* Desktop: panel izquierdo a pantalla completa            */}
+      <div
+        className="relative flex flex-col overflow-hidden text-white
+                   lg:w-1/2 lg:justify-between lg:p-12
+                   p-6 justify-center items-center"
+        style={{ background: "linear-gradient(135deg, #2563b0 0%, #1e4d8c 40%, #1a3f7a 100%)" }}
+      >
         {/* Animated gradient overlay */}
         <div className="pointer-events-none absolute inset-0" style={{ animation: "gradShift 12s ease-in-out infinite alternate" }} />
 
@@ -83,62 +127,30 @@ export default function LoginPage() {
           }}
         />
 
-        {/* Keyframes */}
-        <style>{`
-          @keyframes float1 {
-            0%   { transform: translate(0px, 0px) scale(1); }
-            33%  { transform: translate(30px, -25px) scale(1.05); }
-            66%  { transform: translate(-20px, 20px) scale(0.97); }
-            100% { transform: translate(0px, 0px) scale(1); }
-          }
-          @keyframes float2 {
-            0%   { transform: translate(0px, 0px) scale(1); }
-            50%  { transform: translate(-35px, 30px) scale(1.08); }
-            100% { transform: translate(0px, 0px) scale(1); }
-          }
-          @keyframes float3 {
-            0%   { transform: translate(0px, 0px) scale(1); }
-            40%  { transform: translate(25px, -20px) scale(1.04); }
-            80%  { transform: translate(-15px, 15px) scale(0.96); }
-            100% { transform: translate(0px, 0px) scale(1); }
-          }
-          @keyframes driftGrid {
-            from { background-position: 0px 0px; }
-            to   { background-position: 56px 56px; }
-          }
-          @keyframes gradShift {
-            0%   { background: radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 60%); }
-            50%  { background: radial-gradient(ellipse at 75% 65%, rgba(255,255,255,0.09) 0%, transparent 60%); }
-            100% { background: radial-gradient(ellipse at 40% 80%, rgba(255,255,255,0.05) 0%, transparent 60%); }
-          }
-          @keyframes logoSpin {
-            0%   { transform: rotate(0deg) scale(1); }
-            50%  { transform: rotate(4deg) scale(1.04); }
-            100% { transform: rotate(0deg) scale(1); }
-          }
-          @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(18px); }
-            to   { opacity: 1; transform: translateY(0); }
-          }
-        `}</style>
-
-        {/* Contenido */}
-        <div className="relative flex items-center gap-3" style={{ animation: "fadeUp 0.8s ease-out both" }}>
-          <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain drop-shadow-lg"
+        {/* Logo + nombre — siempre visible */}
+        <div className="relative flex items-center gap-3 lg:self-start w-full lg:w-auto justify-center lg:justify-start"
+          style={{ animation: "fadeUp 0.8s ease-out both" }}>
+          <img src="/logo.png" alt="Logo" className="h-12 w-12 lg:h-16 lg:w-16 object-contain drop-shadow-lg"
             style={{ animation: "logoSpin 8s ease-in-out infinite" }} />
-          <span className="text-lg font-bold tracking-tight">Plataforma de Gestión Pastoral</span>
+          <span className="text-base lg:text-lg font-bold tracking-tight">Plataforma de Gestión Pastoral</span>
         </div>
 
-        <div className="relative" style={{ animation: "fadeUp 0.9s ease-out 0.15s both" }}>
-          <h1 className="text-4xl font-bold leading-tight mb-4">
-            Gestión pastoral
-          </h1>
+        {/* Texto central — oculto en móvil para mantener el banner compacto */}
+        <div className="relative hidden lg:block" style={{ animation: "fadeUp 0.9s ease-out 0.15s both" }}>
+          <h1 className="text-4xl font-bold leading-tight mb-4">Gestión pastoral</h1>
           <p className="text-blue-200 text-lg leading-relaxed max-w-sm">
             Administra iglesias, pastores, credenciales y eventos de nuestra misión.
           </p>
         </div>
 
-        <div className="relative flex items-center gap-3 text-sm text-blue-300"
+        {/* Descripción compacta — solo en móvil, debajo del logo */}
+        <p className="relative lg:hidden text-blue-200 text-sm text-center mt-2 max-w-xs"
+          style={{ animation: "fadeUp 0.9s ease-out 0.15s both" }}>
+          Administra iglesias, pastores y credenciales de nuestra misión.
+        </p>
+
+        {/* Footer — solo desktop */}
+        <div className="relative hidden lg:flex items-center gap-3 text-sm text-blue-300"
           style={{ animation: "fadeUp 1s ease-out 0.3s both" }}>
           <ShieldCheck size={16} />
           Acceso restringido a usuarios autorizados
@@ -148,11 +160,6 @@ export default function LoginPage() {
       {/* ── Right panel — form ──────────────────────────────────── */}
       <div className="flex flex-1 flex-col justify-center items-center px-5 py-10 sm:px-8 sm:py-12 bg-slate-50">
         <div className="w-full max-w-sm">
-          <div className="flex items-center gap-3 mb-10">
-            <img src="/logo.png" alt="Logo" className="h-14 w-14 object-contain flex-shrink-0" />
-            <span className="text-base font-bold text-slate-900 lg:hidden">Plataforma de Gestión Pastoral</span>
-          </div>
-
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-slate-900">Iniciar sesión</h2>
             <p className="mt-1.5 text-sm text-slate-500">Ingresa tus credenciales para continuar</p>
