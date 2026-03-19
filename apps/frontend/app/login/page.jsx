@@ -281,16 +281,14 @@ export default function LoginPage() {
 
           {/* Logo con glow */}
           <div className="relative flex items-center gap-4" style={{ animation: "fadeUp 0.8s ease-out both" }}>
-            <div style={{ borderRadius: "50%", padding: 4, background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)", animation: "pulseRing 3s ease-out infinite" }}>
-              <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain drop-shadow-2xl" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="h-16 w-16 object-contain drop-shadow-2xl" />
             <span className="text-lg font-bold tracking-tight drop-shadow">Plataforma de Gestión Pastoral</span>
           </div>
 
           {/* Heading vibrante */}
           <div className="relative" style={{ animation: "fadeUp 0.9s ease-out 0.15s both" }}>
             <h1 className="text-5xl font-extrabold leading-tight tracking-tight mb-3 drop-shadow">
-              Gestión <span style={{ color: "#93c5fd" }}>pastoral</span>
+              Gestión <span style={{ color: "#93c5fd" }}>Pastoral</span>
             </h1>
             <div style={{ width: 64, height: 4, borderRadius: 2, background: "linear-gradient(90deg, #60a5fa, #22d3ee)", marginBottom: 18 }} />
             <p className="text-blue-200 text-lg leading-relaxed max-w-sm">
@@ -319,9 +317,9 @@ export default function LoginPage() {
               style={{ background: "#e0e7ff", opacity: 0.50, animation: "float3 9s ease-in-out infinite" }} />
           </div>
 
-          <div className="relative w-full max-w-sm">
+          <div className="relative w-full max-w-md">
             {/* Card elevada */}
-            <div className="rounded-3xl bg-white/80 border border-blue-100 shadow-xl shadow-blue-100/40 px-8 py-9"
+            <div className="rounded-3xl bg-white/80 border border-blue-100 shadow-xl shadow-blue-100/40 px-10 py-10"
               style={{ backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
 
             <div className="flex items-center gap-3 mb-8">
