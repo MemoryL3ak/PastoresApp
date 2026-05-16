@@ -1,5 +1,5 @@
-import { ChevronLeft, ChevronRight, Loader2, Plus, Search, UserCircle2 } from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2, Plus, Search, UserCircle2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import ExportMenu from "./ExportMenu";
 import { useAuth } from "@/context/AuthContext";
@@ -29,7 +29,36 @@ export default function PastoresList({
       ? <Loader2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500 pointer-events-none animate-spin" />
       : <Search   size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />;
   const [toDelete, setToDelete] = useState(null);
+  const [photoZoom, setPhotoZoom] = useState(null); // { url, name, x, y, placement }
   const { canEdit } = useAuth();
+
+  // Close photo zoom on Escape
+  useEffect(() => {
+    if (!photoZoom) return;
+    const onKey = (e) => { if (e.key === "Escape") setPhotoZoom(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [photoZoom]);
+
+  function openPhoto(e, pastor) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const POPOVER_W = 240;
+    const POPOVER_H = 320;
+    const GAP = 12;
+    // Default: place to the right of the thumbnail
+    let x = rect.right + GAP;
+    let placement = "right";
+    if (x + POPOVER_W > window.innerWidth - 16) {
+      // Flip to the left if it would overflow
+      x = rect.left - POPOVER_W - GAP;
+      placement = "left";
+    }
+    // Vertically align with the row, clamp to viewport
+    let y = rect.top + rect.height / 2 - POPOVER_H / 2;
+    if (y < 16) y = 16;
+    if (y + POPOVER_H > window.innerHeight - 16) y = window.innerHeight - POPOVER_H - 16;
+    setPhotoZoom({ url: pastor.photoUrl, name: pastor.nombre, x, y, placement });
+  }
 
   return (
     <div className="space-y-5">
@@ -96,15 +125,34 @@ export default function PastoresList({
               <tr key={p.id}>
                 <td>
                   {p.photoUrl ? (
-                    <img src={p.photoUrl} alt={p.nombre}
-                      className="w-20 max-h-36 rounded-lg object-contain ring-1 ring-slate-200 bg-slate-50" />
+                    <button
+                      type="button"
+                      onClick={(e) => openPhoto(e, p)}
+                      className="block group relative focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg"
+                      aria-label={`Ver foto de ${p.nombre}`}
+                    >
+                      <img src={p.photoUrl} alt={p.nombre}
+                        className="w-20 max-h-36 rounded-lg object-contain ring-1 ring-slate-200 bg-slate-50 transition-transform group-hover:scale-[1.03] group-hover:ring-brand-400 cursor-zoom-in" />
+                    </button>
                   ) : (
                     <div className="h-28 w-20 rounded-lg bg-slate-100 flex items-center justify-center">
                       <UserCircle2 size={40} className="text-slate-400" />
                     </div>
                   )}
                 </td>
-                <td><span className="font-medium text-slate-900">{p.nombre}</span></td>
+                <td>
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => onEditPastor(p)}
+                      className="font-medium text-slate-900 text-left hover:text-brand-700 hover:underline underline-offset-2 transition-colors"
+                    >
+                      {p.nombre}
+                    </button>
+                  ) : (
+                    <span className="font-medium text-slate-900">{p.nombre}</span>
+                  )}
+                </td>
                 <td className="text-slate-500">{p.rut || "—"}</td>
                 <td>{p.iglesia || "—"}</td>
                 <td>
@@ -155,6 +203,39 @@ export default function PastoresList({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Photo popover anchored to the clicked thumbnail */}
+      {photoZoom && (
+        <>
+          {/* transparent click-trap to close on outside click */}
+          <div className="fixed inset-0 z-40" onClick={() => setPhotoZoom(null)} />
+          <div
+            className="fixed z-50 w-[240px] bg-white rounded-2xl shadow-2xl ring-1 ring-slate-200 overflow-hidden animate-[zoomIn_160ms_ease-out]"
+            style={{ left: photoZoom.x, top: photoZoom.y }}
+            role="dialog"
+            aria-label={photoZoom.name}
+          >
+            <button
+              type="button"
+              onClick={() => setPhotoZoom(null)}
+              className="absolute top-2 right-2 z-10 bg-white/90 hover:bg-white text-slate-500 hover:text-red-600 rounded-full p-1 shadow-sm ring-1 ring-slate-200 transition-colors"
+              aria-label="Cerrar"
+            >
+              <X size={14} />
+            </button>
+            <img
+              src={photoZoom.url}
+              alt={photoZoom.name}
+              className="w-full h-[260px] object-cover bg-slate-50"
+            />
+            {photoZoom.name && (
+              <div className="px-3 py-2 border-t border-slate-100">
+                <p className="text-sm font-semibold text-slate-800 truncate">{photoZoom.name}</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <ConfirmDialog

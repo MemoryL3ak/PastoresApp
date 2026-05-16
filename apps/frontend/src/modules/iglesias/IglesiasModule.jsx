@@ -260,7 +260,19 @@ export default function IglesiasModule() {
                   const country = COUNTRIES.find((c) => c.code === church.country);
                   return (
                     <tr key={church.id}>
-                      <td className="font-medium text-slate-900">{church.name}</td>
+                      <td>
+                        {canEdit ? (
+                          <button
+                            type="button"
+                            onClick={() => startEdit(church)}
+                            className="font-medium text-slate-900 text-left hover:text-brand-700 hover:underline underline-offset-2 transition-colors"
+                          >
+                            {church.name}
+                          </button>
+                        ) : (
+                          <span className="font-medium text-slate-900">{church.name}</span>
+                        )}
+                      </td>
                       <td>
                         <div className="flex items-center gap-2">
                           {church.country && <img src={`https://flagcdn.com/w40/${church.country.toLowerCase()}.png`} alt={country?.name ?? church.country} className="w-7 h-5 rounded-sm object-cover flex-shrink-0" />}
