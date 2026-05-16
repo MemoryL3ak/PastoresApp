@@ -43,6 +43,22 @@ const VISIBLE_TEMPLATES = TEMPLATES.filter((t) => !t.hidden);
 const EDITOR_SCALE = 0.72;
 
 /* ── localStorage helpers (v2 keys — discards any pre-v2 stored layouts) ── */
+const ACTIVE_TEMPLATE_KEY = "credential_active_template_v1";
+const DEFAULT_TEMPLATE_ID = "elite-azul";
+
+function loadActiveTemplate() {
+  if (typeof window === "undefined") return DEFAULT_TEMPLATE_ID;
+  try {
+    const stored = localStorage.getItem(ACTIVE_TEMPLATE_KEY);
+    if (stored && VISIBLE_TEMPLATES.some((t) => t.id === stored)) return stored;
+  } catch { /* ignore */ }
+  return DEFAULT_TEMPLATE_ID;
+}
+
+function saveActiveTemplate(id) {
+  try { localStorage.setItem(ACTIVE_TEMPLATE_KEY, id); } catch { /* ignore */ }
+}
+
 function loadLayout(templateId) {
   if (typeof window === "undefined") return defaultLayout(templateId);
   try {
@@ -65,22 +81,33 @@ function loadBackLayout(templateId) {
 function TemplateSelector({ value, onChange }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
-      <div className="text-sm font-semibold text-slate-700 mb-2">Plantilla</div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-semibold text-slate-700">Plantilla</div>
+        <div className="text-[10px] text-slate-400 uppercase tracking-wider">Se guarda automáticamente</div>
+      </div>
       <div className="flex gap-2">
-        {VISIBLE_TEMPLATES.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onChange(t.id)}
-            className={`flex-1 text-left px-3 py-2.5 rounded-lg border transition-all text-sm ${
-              value === t.id
-                ? "border-brand-600 bg-brand-50 text-brand-800 font-semibold"
-                : "border-slate-200 hover:border-slate-300 text-slate-600"
-            }`}
-          >
-            <div className="font-medium">{t.label}</div>
-            <div className="text-xs text-slate-400 mt-0.5 font-normal">{t.description}</div>
-          </button>
-        ))}
+        {VISIBLE_TEMPLATES.map((t) => {
+          const active = value === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => onChange(t.id)}
+              className={`relative flex-1 text-left px-3 py-2.5 rounded-lg border transition-all text-sm ${
+                active
+                  ? "border-brand-600 bg-brand-50 text-brand-800 font-semibold"
+                  : "border-slate-200 hover:border-slate-300 text-slate-600"
+              }`}
+            >
+              {active && (
+                <span className="absolute -top-2 right-2 inline-flex items-center gap-1 bg-brand-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full shadow-sm">
+                  <Check size={9} strokeWidth={3} /> Predeterminada
+                </span>
+              )}
+              <div className="font-medium">{t.label}</div>
+              <div className="text-xs text-slate-400 mt-0.5 font-normal">{t.description}</div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -214,6 +241,7 @@ function TemplateEditorTab({
     setLayout(loadLayout(id));
     setBackLayout(loadBackLayout(id));
     setSelectedEl(null);
+    saveActiveTemplate(id);
   }
 
   function handleNameChange(val) {
@@ -705,9 +733,9 @@ const CARD_H = 408;
 
 export default function CredencialesPage() {
   const [activeTab, setActiveTab] = useState("editor"); // "editor" | "print"
-  const [templateId, setTemplateId] = useState("elite-azul");
-  const [layout, setLayout] = useState(() => loadLayout("elite-azul"));
-  const [backLayout, setBackLayout] = useState(() => loadBackLayout("elite-azul"));
+  const [templateId, setTemplateId] = useState(() => loadActiveTemplate());
+  const [layout, setLayout] = useState(() => loadLayout(loadActiveTemplate()));
+  const [backLayout, setBackLayout] = useState(() => loadBackLayout(loadActiveTemplate()));
   const [superintendent, setSuperintendente] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("super_name") || "" : ""
   );

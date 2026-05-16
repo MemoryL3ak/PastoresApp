@@ -1,6 +1,24 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { CallerProfile } from "../../plugins/auth.js";
+import { stripAccents } from "../../lib/text.js";
+import { resolveCountryCodes } from "../../lib/countries.js";
+
+/** Convert known Postgres errors to friendly Spanish messages. Returns null when no mapping applies. */
+function friendlyPastorError(err: { code?: string; message?: string; details?: string | null }): string | null {
+  // 23505 = unique_violation
+  if (err.code === "23505") {
+    const text = `${err.message ?? ""} ${err.details ?? ""}`;
+    if (text.includes("pastors_document_number_key") || text.toLowerCase().includes("document_number")) {
+      const m = err.details?.match(/\(document_number\)=\(([^)]+)\)/);
+      return m
+        ? `Ya existe un pastor registrado con el RUT/documento ${m[1]}`
+        : "Ya existe un pastor con ese RUT/documento";
+    }
+    return "El registro ya existe (valor duplicado)";
+  }
+  return null;
+}
 
 const createPastorSchema = z.object({
   first_name: z.string().min(2),
@@ -43,7 +61,8 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
 
     const caller = request.callerProfile;
     const offset = (query.page - 1) * query.limit;
-    const SELECT = "id, first_name, last_name, document_number, email, phone, pastoral_status, degree_title, photo_url, expiry_date, church_id, country, zone, foreign_zone, churches(id, name, country)";
+    // !inner forces an inner join so filters on churches.* actually exclude non-matching rows.
+    const SELECT = "id, first_name, last_name, document_number, email, phone, pastoral_status, degree_title, photo_url, expiry_date, church_id, country, zone, foreign_zone, churches!inner(id, name, country)";
 
     let dbQuery = app.supabaseAdmin
       .schema("core")
@@ -52,8 +71,21 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       .order("created_at", { ascending: false })
       .range(offset, offset + query.limit - 1);
 
-    if (query.search)  dbQuery = dbQuery.ilike("full_name", `%${query.search}%`);
+    if (query.search)  dbQuery = dbQuery.ilike("full_name_unaccent", `%${stripAccents(query.search)}%`);
     if (query.status)  dbQuery = dbQuery.eq("pastoral_status", query.status);
+    if (query.iglesia) dbQuery = dbQuery.ilike("churches.name_unaccent", `%${stripAccents(query.iglesia)}%`);
+
+    if (query.country) {
+      const text = query.country.trim();
+      // 2-letter ISO codes → exact match. Anything else → resolve country name(s) to codes.
+      if (/^[A-Za-z]{2}$/.test(text)) {
+        dbQuery = dbQuery.eq("churches.country", text.toUpperCase());
+      } else {
+        const codes = resolveCountryCodes(text);
+        if (codes.length > 0) dbQuery = dbQuery.in("churches.country", codes);
+        else dbQuery = dbQuery.eq("churches.country", "__NO_MATCH__");
+      }
+    }
 
     // country_assigned users only see their own country
     if (caller.role === "country_assigned" && caller.assigned_country) {
@@ -98,7 +130,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       .select("*")
       .single();
 
-    if (error) return reply.badRequest(error.message);
+    if (error) return reply.badRequest(friendlyPastorError(error) ?? error.message);
     return reply.code(201).send(data);
   });
 
@@ -146,7 +178,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       .select("*")
       .single();
 
-    if (error) return reply.badRequest(error.message);
+    if (error) return reply.badRequest(friendlyPastorError(error) ?? error.message);
     return data;
   });
 

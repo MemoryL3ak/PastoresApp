@@ -1,6 +1,7 @@
-import { ChevronLeft, ChevronRight, Plus, Search, UserCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Plus, Search, UserCircle2 } from "lucide-react";
 import { useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
+import ExportMenu from "./ExportMenu";
 import { useAuth } from "@/context/AuthContext";
 
 function SkeletonRow() {
@@ -15,13 +16,18 @@ function SkeletonRow() {
 }
 
 export default function PastoresList({
-  loading, pastores, total, page, totalPages, onPageChange,
+  loading, searching, pastores, total, page, totalPages, onPageChange,
   searchName, onSearchName,
   searchIglesia, onSearchIglesia,
   searchCountry, onSearchCountry,
   filterEstado, onFilterEstado,
   onEditPastor, onAddPastor, onDeletePastor,
+  onExport, canExport = false,
 }) {
+  const SearchIcon = ({ active }) =>
+    active
+      ? <Loader2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-500 pointer-events-none animate-spin" />
+      : <Search   size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />;
   const [toDelete, setToDelete] = useState(null);
   const { canEdit } = useAuth();
 
@@ -34,28 +40,31 @@ export default function PastoresList({
             {total} pastor{total !== 1 ? "es" : ""} registrado{total !== 1 ? "s" : ""}
           </p>
         </div>
-        {canEdit && (
-          <button className="btn-primary" onClick={onAddPastor}>
-            <Plus size={16} />
-            Agregar pastor
-          </button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {onExport && <ExportMenu onExport={onExport} disabled={!canExport} />}
+          {canEdit && (
+            <button className="btn-primary" onClick={onAddPastor}>
+              <Plus size={16} />
+              Agregar pastor
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3">
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
+          <SearchIcon active={searching && !!searchName} />
           <input type="text" className="field-input pl-9" placeholder="Buscar por nombre..."
             value={searchName} onChange={(e) => onSearchName(e.target.value)} />
         </div>
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
+          <SearchIcon active={searching && !!searchIglesia} />
           <input type="text" className="field-input pl-9" placeholder="Buscar por iglesia..."
             value={searchIglesia} onChange={(e) => onSearchIglesia(e.target.value)} />
         </div>
         <div className="relative flex-1 min-w-[160px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-400 pointer-events-none" />
+          <SearchIcon active={searching && !!searchCountry} />
           <input type="text" className="field-input pl-9" placeholder="Buscar por país..."
             value={searchCountry} onChange={(e) => onSearchCountry(e.target.value)} />
         </div>

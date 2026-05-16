@@ -100,6 +100,23 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(204).send();
   });
 
+  app.delete("/:id", async (request, reply) => {
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+
+    if (request.callerProfile.id === id) {
+      return reply.badRequest("No puedes eliminar tu propio usuario");
+    }
+    if (request.callerProfile.role !== "admin") {
+      return reply.forbidden("Solo administradores pueden eliminar usuarios");
+    }
+
+    // Deleting the auth user cascades to core.profiles (FK ON DELETE CASCADE).
+    const { error } = await app.supabaseAdmin.auth.admin.deleteUser(id);
+    if (error) return reply.badRequest(error.message);
+
+    return reply.code(204).send();
+  });
+
   app.patch("/:id/reset-password", async (request, reply) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const { password } = z.object({ password: z.string().min(6) }).parse(request.body);

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, ShieldCheck, Globe, Eye, Pencil, KeyRound } from "lucide-react";
+import { Plus, X, ShieldCheck, Globe, Eye, Pencil, KeyRound, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useUsers, invalidateUsers } from "@/lib/hooks";
 import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { COUNTRIES } from "@/lib/geography";
 
 const ROLES = [
@@ -40,11 +42,13 @@ function Modal({ title, onClose, children }) {
 
 export default function UsersRolesModule() {
   const { users, isLoading, error: loadError } = useUsers();
+  const { profile }                       = useAuth();
   const [mutateError, setMutateError]     = useState("");
   const { toast } = useToast();
   const [creating, setCreating]           = useState(false);
   const [editingUser, setEditingUser]     = useState(null);
   const [resetUser, setResetUser]         = useState(null);
+  const [userToDelete, setUserToDelete]   = useState(null);
   const [createForm, setCreateForm]       = useState(emptyCreate);
   const [editForm, setEditForm]           = useState(emptyEdit);
   const [newPassword, setNewPassword]     = useState("");
@@ -95,6 +99,21 @@ export default function UsersRolesModule() {
       setMutateError("");
       toast("Usuario actualizado correctamente");
     } catch (err) { setMutateError(err.message || "No se pudo guardar los cambios"); }
+  };
+
+  /* ── Delete ── */
+  const handleDelete = async () => {
+    if (!userToDelete) return;
+    try {
+      await api.deleteUser(userToDelete.id);
+      setUserToDelete(null);
+      invalidateUsers();
+      setMutateError("");
+      toast("Usuario eliminado correctamente");
+    } catch (err) {
+      setUserToDelete(null);
+      setMutateError(err.message || "No se pudo eliminar el usuario");
+    }
   };
 
   /* ── Reset password ── */
@@ -210,7 +229,7 @@ export default function UsersRolesModule() {
               <th>Rol</th>
               <th>País asignado</th>
               <th>Estado</th>
-              <th style={{ width: 100 }}></th>
+              <th style={{ width: 140 }}></th>
             </tr>
           </thead>
           <tbody>
@@ -238,7 +257,7 @@ export default function UsersRolesModule() {
                         </span>
                       </td>
                       <td>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
                           <button type="button" className="btn-link text-xs" onClick={() => openEdit(user)}>
                             <Pencil size={12} className="inline mr-1" />Editar
                           </button>
@@ -246,6 +265,12 @@ export default function UsersRolesModule() {
                             onClick={() => { setResetUser(user); setNewPassword(""); setMutateError(""); }}>
                             <KeyRound size={12} className="inline mr-1" />Clave
                           </button>
+                          {user.id !== profile?.id && (
+                            <button type="button" className="btn-link text-xs text-red-500 hover:text-red-700"
+                              onClick={() => { setUserToDelete(user); setMutateError(""); }}>
+                              <Trash2 size={12} className="inline mr-1" />Eliminar
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -312,6 +337,18 @@ export default function UsersRolesModule() {
           </form>
         </Modal>
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={Boolean(userToDelete)}
+        title="Eliminar usuario"
+        message={userToDelete
+          ? `¿Estás seguro que deseas eliminar a "${userToDelete.full_name}"? Esta acción es permanente y no se puede deshacer. El usuario perderá acceso inmediato a la plataforma.`
+          : ""}
+        confirmLabel="Sí, eliminar"
+        onCancel={() => setUserToDelete(null)}
+        onConfirm={handleDelete}
+      />
 
       {/* Reset password modal */}
       {resetUser && (

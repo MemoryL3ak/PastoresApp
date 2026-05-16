@@ -17,10 +17,14 @@ export const invalidateUsers     = () => swrMutate("users");
 
 // ── Hooks ────────────────────────────────────────────────────────────────────
 
-export function useChurches({ page = 1, limit = 50, search = "" } = {}) {
+export function useChurches({ page = 1, limit = 50, search = "", country = "" } = {}) {
   const { data, error, isLoading, isValidating } = useSWR(
-    ["churches", page, limit, search],
-    () => api.listChurches({ page, limit, ...(search ? { search } : {}) }),
+    ["churches", page, limit, search, country],
+    () => api.listChurches({
+      page, limit,
+      ...(search  ? { search }  : {}),
+      ...(country ? { country } : {}),
+    }),
     { keepPreviousData: true }
   );
   return {
@@ -37,10 +41,21 @@ export function useAllChurches() {
   return { churches: data ?? [], isLoading };
 }
 
-export function usePastors({ page = 1, limit = 50, search = "", status = "" } = {}) {
+export function useAllPastors() {
+  const { data, isLoading } = useSWR("pastors/all", api.listAllPastors);
+  return { pastors: data ?? [], isLoading };
+}
+
+export function usePastors({ page = 1, limit = 50, search = "", status = "", iglesia = "", country = "" } = {}) {
   const { data, error, isLoading, isValidating } = useSWR(
-    ["pastors", page, limit, search, status],
-    () => api.listPastors({ page, limit, ...(search ? { search } : {}), ...(status ? { status } : {}) }),
+    ["pastors", page, limit, search, status, iglesia, country],
+    () => api.listPastors({
+      page, limit,
+      ...(search   ? { search }   : {}),
+      ...(status   ? { status }   : {}),
+      ...(iglesia  ? { iglesia }  : {}),
+      ...(country  ? { country }  : {}),
+    }),
     { keepPreviousData: true }
   );
   return {

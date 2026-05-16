@@ -1,6 +1,8 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { CallerProfile } from "../../plugins/auth.js";
+import { stripAccents } from "../../lib/text.js";
+import { resolveCountryCodes } from "../../lib/countries.js";
 
 const churchSchema = z.object({
   name:    z.string().min(2),
@@ -27,10 +29,11 @@ function assertCanEdit(profile: CallerProfile, country: string | null | undefine
 export const churchRoutes: FastifyPluginAsync = async (app) => {
   app.get("/", async (request, reply) => {
     const query = z.object({
-      search: z.string().optional(),
-      page:   z.coerce.number().int().min(1).default(1),
-      limit:  z.coerce.number().int().min(1).max(100).default(50),
-      all:    z.coerce.boolean().default(false),
+      search:  z.string().optional(),
+      country: z.string().optional(),
+      page:    z.coerce.number().int().min(1).default(1),
+      limit:   z.coerce.number().int().min(1).max(100).default(50),
+      all:     z.coerce.boolean().default(false),
     }).parse(request.query);
 
     const caller = request.callerProfile;
@@ -41,7 +44,18 @@ export const churchRoutes: FastifyPluginAsync = async (app) => {
       .select("id, code, name, city, address, phone, country, region, commune, zone", { count: "exact" })
       .order("name", { ascending: true });
 
-    if (query.search) dbQuery = dbQuery.ilike("name", `%${query.search}%`);
+    if (query.search) dbQuery = dbQuery.ilike("name_unaccent", `%${stripAccents(query.search)}%`);
+
+    if (query.country) {
+      const text = query.country.trim();
+      if (/^[A-Za-z]{2}$/.test(text)) {
+        dbQuery = dbQuery.eq("country", text.toUpperCase());
+      } else {
+        const codes = resolveCountryCodes(text);
+        if (codes.length > 0) dbQuery = dbQuery.in("country", codes);
+        else dbQuery = dbQuery.eq("country", "__NO_MATCH__");
+      }
+    }
 
     // country_assigned users only see their own country
     if (caller.role === "country_assigned" && caller.assigned_country) {

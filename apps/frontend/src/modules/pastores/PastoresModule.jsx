@@ -4,13 +4,26 @@ import { useEffect, useMemo, useState } from "react";
 import PastorForm from "@/components/PastorForm";
 import PastoresList from "@/components/PastoresList";
 import { api } from "@/lib/api";
-import { usePastors, useAllChurches, invalidatePastors } from "@/lib/hooks";
+import { usePastors, useAllChurches, useAllPastors, invalidatePastors } from "@/lib/hooks";
 import { useToast } from "@/context/ToastContext";
 import { COUNTRIES } from "@/lib/geography";
+import { exportToCSV, exportToXLSX } from "@/lib/csv";
+
+const STATUS_LABELS = {
+  active:        "Activo",
+  inactive:      "Inactivo",
+  suspended:     "Honorario",
+  fallecido:     "Fallecido",
+  descontinuado: "Descontinuado",
+};
+
+function countryName(code) {
+  return COUNTRIES.find((c) => c.code === code)?.name ?? code ?? "";
+}
 
 const PAGE_SIZE = 50;
 
-function useDebounce(value, delay = 400) {
+function useDebounce(value, delay = 200) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(value), delay);
@@ -37,13 +50,16 @@ export default function PastoresModule() {
   const debouncedIglesia = useDebounce(searchIglesia);
   const debouncedCountry = useDebounce(searchCountry);
 
-  const { pastors, total, isLoading, error: loadError } = usePastors({
+  const { pastors, total, isLoading, isValidating, error: loadError } = usePastors({
     page,
     limit: PAGE_SIZE,
-    search: debouncedName,
-    status: filterEstado ? statusMap[filterEstado] : "",
+    search:   debouncedName,
+    status:   filterEstado ? statusMap[filterEstado] : "",
+    iglesia:  debouncedIglesia,
+    country:  debouncedCountry,
   });
   const { churches } = useAllChurches();
+  const { pastors: allPastors } = useAllPastors();
 
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1); }, [debouncedName, debouncedIglesia, debouncedCountry, filterEstado]);
@@ -71,13 +87,6 @@ export default function PastoresModule() {
     zone: pastor.zone ?? "",
     foreignZone: pastor.foreign_zone ?? "",
   }));
-
-  // Client-side filter for iglesia + country (server handles name/status)
-  const filtered = pastorsView.filter((p) => {
-    const matchIglesia = p.iglesia.toLowerCase().includes(debouncedIglesia.toLowerCase());
-    const matchCountry = p.churchCountry.toLowerCase().includes(debouncedCountry.toLowerCase());
-    return matchIglesia && matchCountry;
-  });
 
   const handleDelete = async (id) => {
     try { await api.deletePastor(id); invalidatePastors(); setMutateError(""); toast("Pastor eliminado"); }
@@ -114,6 +123,25 @@ export default function PastoresModule() {
     } catch (err) { setMutateError(err.message || "No se pudo guardar el pastor"); }
   };
 
+  const handleExport = (format) => {
+    const columns = [
+      { key: "first_name",      label: "Nombres" },
+      { key: "last_name",       label: "Apellidos" },
+      { key: "document_number", label: "Documento" },
+      { key: "email",           label: "Email" },
+      { key: "phone",           label: "Teléfono" },
+      { label: "Iglesia",       value: (r) => r.churches?.name ?? churchById.get(r.church_id)?.name ?? "" },
+      { label: "País iglesia",  value: (r) => countryName(r.churches?.country ?? churchById.get(r.church_id)?.country) },
+      { label: "País pastor",   value: (r) => countryName(r.country) },
+      { label: "Estado",        value: (r) => STATUS_LABELS[r.pastoral_status] ?? r.pastoral_status ?? "" },
+      { key: "degree_title",    label: "Grado" },
+      { key: "zone",            label: "Zona" },
+      { key: "expiry_date",     label: "Vencimiento" },
+    ];
+    if (format === "xlsx") exportToXLSX("pastores", allPastors, columns, "Pastores");
+    else                    exportToCSV("pastores", allPastors, columns);
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -122,7 +150,8 @@ export default function PastoresModule() {
       {view === "list" && (
         <PastoresList
           loading={isLoading && pastors.length === 0}
-          pastores={filtered}
+          searching={isValidating && !isLoading}
+          pastores={pastorsView}
           total={total}
           page={page}
           totalPages={totalPages}
@@ -138,6 +167,8 @@ export default function PastoresModule() {
           onDeletePastor={handleDelete}
           onEditPastor={(pastor) => { setSelectedPastor(pastor); setView("form"); }}
           onAddPastor={() => { setSelectedPastor(null); setView("form"); }}
+          onExport={handleExport}
+          canExport={allPastors.length > 0}
         />
       )}
       {view === "form" && (

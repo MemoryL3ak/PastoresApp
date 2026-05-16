@@ -15,7 +15,12 @@ async function apiFetch(path, options = {}) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `HTTP ${response.status}`);
+    let message = text || `HTTP ${response.status}`;
+    try {
+      const body = JSON.parse(text);
+      message = body.message || body.error || message;
+    } catch { /* response wasn't JSON — keep raw text */ }
+    throw new Error(message);
   }
 
   return response.status === 204 ? null : response.json();
@@ -43,6 +48,8 @@ export const api = {
     apiFetch(`/users/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   resetUserPassword: (id, password) =>
     apiFetch(`/users/${id}/reset-password`, { method: "PATCH", body: JSON.stringify({ password }) }),
+  deleteUser: (id) =>
+    apiFetch(`/users/${id}`, { method: "DELETE" }),
 
   listPastors: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
