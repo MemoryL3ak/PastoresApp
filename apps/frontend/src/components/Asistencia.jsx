@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 /* ── Barcode scanner hook ──────────────────────────────────────── */
 // Physical barcode scanners type very fast (< 50ms/char) then press Enter.
 // This hook captures that pattern globally.
-function useBarcodeScanner({ enabled, onScan }) {
+function useBarcodeScanner({ enabled, onScan, ignoreRef }) {
   const buffer = useRef("");
   const lastTime = useRef(0);
 
@@ -14,6 +14,12 @@ function useBarcodeScanner({ enabled, onScan }) {
     if (!enabled) return;
 
     const handler = (e) => {
+      // The scan input handles its own Enter; avoid processing the same scan twice
+      if (ignoreRef?.current && e.target === ignoreRef.current) {
+        buffer.current = "";
+        return;
+      }
+
       const now = Date.now();
       const delta = now - lastTime.current;
       lastTime.current = now;
@@ -31,7 +37,7 @@ function useBarcodeScanner({ enabled, onScan }) {
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [enabled, onScan]);
+  }, [enabled, onScan, ignoreRef]);
 }
 
 /* ── Feedback toast ────────────────────────────────────────────── */
@@ -142,9 +148,11 @@ export default function Asistencia() {
       showScanResult("error", "Selecciona una sesión antes de escanear.");
       return;
     }
-    // Match by RUT (document_number) — strips formatting for flexible match
-    const clean = (s) => s.replace(/[.\-\s]/g, "").toLowerCase();
-    const pastor = normalizedPastores.find((p) => clean(p.rut) === clean(code));
+    // Match by RUT (document_number) keeping only digits and the K verifier.
+    // Scanners configured with a US layout on a Spanish-layout PC send "-" as "'",
+    // so any separator character is ignored.
+    const clean = (s) => s.toUpperCase().replace(/[^0-9K]/g, "").replace(/^0+/, "");
+    const pastor = normalizedPastores.find((p) => p.rut && clean(p.rut) === clean(code));
 
     if (!pastor) {
       showScanResult("error", `Código "${code}" no corresponde a ningún pastor registrado.`);
@@ -174,7 +182,7 @@ export default function Asistencia() {
   }, [selectedSession, normalizedPastores, alreadyCheckedIn]);
 
   // Global keyboard capture for physical scanners
-  useBarcodeScanner({ enabled: scannerActive, onScan: processScan });
+  useBarcodeScanner({ enabled: scannerActive, onScan: processScan, ignoreRef: scanInputRef });
 
   // Focus input when scanner mode activates
   useEffect(() => {
