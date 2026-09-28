@@ -9,6 +9,7 @@ import IEPCredentialModern from "@/components/IEPCredentialModern";
 import CredentialEditorCanvas, {
   defaultLayout,
   defaultBackLayout,
+  withLayoutDefaults,
   CredentialControlPanel,
 } from "@/components/CredentialEditorCanvas";
 import RoleGuard from "@/components/RoleGuard";
@@ -63,7 +64,7 @@ function loadLayout(templateId) {
   if (typeof window === "undefined") return defaultLayout(templateId);
   try {
     const stored = localStorage.getItem(`credential_layout_v2_${templateId}`);
-    if (stored) return JSON.parse(stored);
+    if (stored) return withLayoutDefaults(JSON.parse(stored), defaultLayout(templateId));
   } catch { /* ignore */ }
   return defaultLayout(templateId);
 }
