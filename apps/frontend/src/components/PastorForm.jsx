@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, FileDown, Save, UserCircle2, Upload, X, ChevronDown, Search } from "lucide-react";
 import { IEP_COUNTRIES, getDocumentInfo } from "../lib/geography";
-import CredentialEditorCanvas, { defaultLayout, defaultBackLayout } from "@/components/CredentialEditorCanvas";
+import CredentialEditorCanvas, { defaultLayout, defaultBackLayout, withLayoutDefaults } from "@/components/CredentialEditorCanvas";
 
 const IEP_FOREIGN_COUNTRIES = IEP_COUNTRIES.filter((c) => c.code !== "CL");
 import { useToast } from "../context/ToastContext";
@@ -155,7 +155,7 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
     if (typeof window === "undefined") return defaultLayout("elite-azul");
     try {
       const stored = localStorage.getItem("credential_layout_v2_elite-azul");
-      if (stored) return JSON.parse(stored);
+      if (stored) return withLayoutDefaults(JSON.parse(stored), defaultLayout("elite-azul"));
     } catch { /* ignore */ }
     return defaultLayout("elite-azul");
   }, []);

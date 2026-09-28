@@ -22,6 +22,24 @@ import {
 const ACCENT = BRAND_BLUE;
 const PHOTO_W_DEF = Math.round(CARD_W * 0.40); // 259
 
+// Header/footer texts can only grow: min is the original size, max keeps them inside the card
+const GROW_ONLY_LIMITS = {
+  headerText: { min: 10.5, max: 20 },
+  footerText: { min: 6.5,  max: 11 },
+};
+const HEADER_SUB_RATIO = 8 / 10.5; // subtitle keeps its original proportion to the org name
+const FOOTER_H_MIN = 32;
+
+function growOnlySize(L, key) {
+  const { min, max } = GROW_ONLY_LIMITS[key];
+  return Math.min(max, Math.max(min, L[key]?.fontSize ?? min));
+}
+
+// Stored layouts may predate newer elements — fill any missing keys from the defaults
+export function withLayoutDefaults(layout, defaults) {
+  return { ...defaults, ...(layout ?? {}) };
+}
+
 /* ─────────────────────────────────────────────────────────────────────
    Theme config per template
 ───────────────────────────────────────────────────────────────────── */
@@ -115,6 +133,8 @@ export function defaultLayout(templateId) {
       title:   { x: 20, y: 224, fontSize: 14, fontWeight: 700, fontFamily: "Arial, sans-serif" },
       church:  { x: 20, y: 250, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
       country: { x: 20, y: 268, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
+      headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
+      footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
     };
   }
 
@@ -127,6 +147,8 @@ export function defaultLayout(templateId) {
     title:   { x: 18, y: 225, fontSize: 12, fontWeight: 700, fontFamily: "Arial, sans-serif" },
     church:  { x: 18, y: 251, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
     country: { x: 18, y: 270, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
+    headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
+    footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
   };
 }
 
@@ -254,6 +276,32 @@ function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize =
 }
 
 /* ─────────────────────────────────────────────────────────────────────
+   Selectable wrapper — fixed position, click to select (no drag / resize)
+───────────────────────────────────────────────────────────────────── */
+function Selectable({ id, editMode, selected, onSelect, style, children }) {
+  const isSelected = editMode && selected === id;
+  return (
+    <div
+      style={{
+        ...style,
+        cursor: editMode ? "pointer" : "default",
+        outline: isSelected
+          ? `2px solid ${ACCENT}`
+          : editMode ? "1px dashed rgba(56,120,190,0.35)" : "none",
+        outlineOffset: isSelected ? 2 : 1,
+      }}
+      onMouseDown={(e) => {
+        if (!editMode) return;
+        e.stopPropagation();
+        onSelect(id);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
    Editable front face
 ───────────────────────────────────────────────────────────────────── */
 function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSelect, templateId, scale }) {
@@ -262,6 +310,10 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
   const displayTitle = rawTitle
     ? (rawTitle.toUpperCase().startsWith("PASTOR") ? rawTitle : `PASTOR ${rawTitle}`)
     : "PASTOR";
+  const headerFs = growOnlySize(L, "headerText");
+  const footerFs = growOnlySize(L, "footerText");
+  // two lines (line-height 1.5 + 1.4, 1.5px gap) + 4px vertical padding + 1px top border
+  const footerH = Math.max(FOOTER_H_MIN, Math.ceil(footerFs * 2.9 + 1.5 + 8 + 1));
 
   return (
     <div
@@ -287,14 +339,14 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         zIndex: 3,
         ...(th.headerBorderBottom ? { borderBottom: th.headerBorderBottom } : {}),
       }}>
-        <div style={{ marginLeft: 62 }}>
-          <div style={{ fontSize: 10.5, fontWeight: th.headerOrgWeight, color: th.headerOrgColor, letterSpacing: "0.14em", textTransform: "uppercase", lineHeight: 1.3 }}>
+        <Selectable id="headerText" editMode={editMode} selected={selected} onSelect={onSelect} style={{ marginLeft: 62 }}>
+          <div style={{ fontSize: headerFs, fontWeight: th.headerOrgWeight, color: th.headerOrgColor, letterSpacing: "0.14em", textTransform: "uppercase", lineHeight: 1.3, whiteSpace: "nowrap" }}>
             Iglesia Evangélica Pentecostal
           </div>
-          <div style={{ fontSize: 8, color: th.headerSubColor, fontWeight: th.headerSubWeight, letterSpacing: "0.09em", textTransform: "uppercase", marginTop: 2 }}>
+          <div style={{ fontSize: headerFs * HEADER_SUB_RATIO, color: th.headerSubColor, fontWeight: th.headerSubWeight, letterSpacing: "0.09em", textTransform: "uppercase", marginTop: 2, whiteSpace: "nowrap" }}>
             Credencial de Pastor {rawTitle}
           </div>
-        </div>
+        </Selectable>
       </div>
 
       <Deco templateId={templateId} />
@@ -309,24 +361,25 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         <img src="/logo.png" alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
       </div>
 
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: 32,
+      <Selectable id="footerText" editMode={editMode} selected={selected} onSelect={onSelect} style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: footerH,
         background: th.footerBg, borderTop: `1px solid ${th.footerBorder}`,
         padding: "4px 14px",
         display: "flex", flexDirection: "column", justifyContent: "center",
         zIndex: 3,
+        boxSizing: "border-box",
       }}>
-        <div style={{ fontSize: 6.5, color: th.footerMuted, textAlign: "center", lineHeight: 1.5, fontStyle: "italic" }}>
+        <div style={{ fontSize: footerFs, color: th.footerMuted, textAlign: "center", lineHeight: 1.5, fontStyle: "italic", whiteSpace: "nowrap" }}>
           PERSONALIDAD JURÍDICA DE DERECHO PÚBLICO Nº 14 — LEY 19.638 DE LA REPÚBLICA DE CHILE.
         </div>
-        <div style={{ fontSize: 6.5, color: th.footerVerse, textAlign: "center", marginTop: 1.5, lineHeight: 1.4 }}>
+        <div style={{ fontSize: footerFs, color: th.footerVerse, textAlign: "center", marginTop: 1.5, lineHeight: 1.4, whiteSpace: "nowrap" }}>
           &quot;...Id por todo el mundo y predicad el evangelio a toda criatura.&quot; S. Marcos 16:15
         </div>
-      </div>
+      </Selectable>
 
       {isPresbitero(rawTitle) && (
         <div style={{
-          position: "absolute", bottom: 32, left: 0, right: 0,
+          position: "absolute", bottom: footerH, left: 0, right: 0,
           background: th.presbyterBg, borderTop: th.presbyterBorderTop,
           display: "flex", alignItems: "center", justifyContent: "center",
           gap: 3, padding: "5px 8px", zIndex: 3,
@@ -362,7 +415,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         top: th.topBarH + th.headerH,
         left: CARD_W - PHOTO_W_DEF - 40,
         right: 0,
-        bottom: 32,
+        bottom: footerH,
         zIndex: 2,
         overflow: "hidden",
       }}>
@@ -669,6 +722,8 @@ const FRONT_ELEMENT_LABELS = {
   title:   "Título",
   church:  "Iglesia",
   country: "País",
+  headerText: "Encabezado",
+  footerText: "Pie",
 };
 
 const BACK_ELEMENT_LABELS = {
@@ -697,6 +752,7 @@ export function CredentialControlPanel({ selected, layout, onUpdate, onSelect, o
   const el = selected ? layout[selected] : null;
   const isText = textKeys.includes(selected);
   const hasExplicitSize = el?.w !== undefined && el?.h !== undefined;
+  const growOnly = face === "front" ? GROW_ONLY_LIMITS[selected] : null;
 
   function patch(key, value) {
     onUpdate(selected, { ...el, [key]: value });
@@ -734,7 +790,24 @@ export function CredentialControlPanel({ selected, layout, onUpdate, onSelect, o
         )}
       </div>
 
-      {el ? (
+      {growOnly ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipografía</span>
+          <div>
+            <div className="flex justify-between mb-1">
+              <label className="text-xs text-slate-500">Tamaño</label>
+              <span className="text-xs font-medium text-slate-700">{growOnlySize(layout, selected)}px</span>
+            </div>
+            <input
+              type="range" min={growOnly.min} max={growOnly.max} step="0.5"
+              value={growOnlySize(layout, selected)}
+              onChange={e => patch("fontSize", Math.max(growOnly.min, Number(e.target.value)))}
+              className="w-full accent-brand-600"
+            />
+          </div>
+          <p className="text-[11px] text-slate-400">Solo se puede agrandar desde el tamaño original.</p>
+        </div>
+      ) : el ? (
         <>
           {/* Position */}
           <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
