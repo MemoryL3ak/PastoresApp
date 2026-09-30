@@ -16,7 +16,7 @@ import JsBarcode from "jsbarcode";
 import { useEffect, useRef } from "react";
 import {
   BRAND_BLUE, CARD_W, CARD_H, PrintCard,
-  PRESBYTER_COUNTRIES, formatExpiry, parsePastor, isPresbitero,
+  COUNTRIES_BANNER_SRC, COUNTRIES_BANNER_RATIO, formatExpiry, parsePastor, hasCountriesBanner,
 } from "@/lib/credentialShared";
 
 const ACCENT = BRAND_BLUE;
@@ -27,7 +27,9 @@ const GROW_ONLY_LIMITS = {
   headerText: { min: 10.5, max: 20 },
   footerText: { min: 6.5,  max: 11 },
 };
-const HEADER_SUB_RATIO = 8 / 10.5; // subtitle keeps its original proportion to the org name
+const HEADER_SUB_RATIO = 8 / 10.5;
+// Big background logo: originally centered at 30% / 50% of the card, 160×160
+const WATERMARK_DEFAULT = { x: Math.round(CARD_W * 0.3 - 80), y: CARD_H / 2 - 80, w: 160, h: 160 }; // subtitle keeps its original proportion to the org name
 const FOOTER_H_MIN = 32;
 
 function growOnlySize(L, key) {
@@ -72,9 +74,6 @@ const THEMES = {
     cardShadow: "0 8px 32px rgba(30,60,110,0.14)",
     barcodeBoxBg: "#f5f8fd",
     barcodeBoxBorder: `${ACCENT}30`,
-    presbyterBg: "#ddeaf8",
-    presbyterBorderTop: `1px solid ${ACCENT}40`,
-    presbyterImgBorder: "0.5px solid #c8d8ee",
     watermarkOpacity: 0.18,
     backWatermarkOpacity: 0.18,
   },
@@ -106,9 +105,6 @@ const THEMES = {
     cardShadow: "0 8px 32px rgba(20,60,120,0.18)",
     barcodeBoxBg: "#ffffff",
     barcodeBoxBorder: "#b8d4f0",
-    presbyterBg: ACCENT,
-    presbyterBorderTop: "1px solid #2a5e9e",
-    presbyterImgBorder: "0.5px solid rgba(255,255,255,0.35)",
     watermarkOpacity: 0.28,
     backWatermarkOpacity: 0.25,
   },
@@ -135,6 +131,7 @@ export function defaultLayout(templateId) {
       country: { x: 20, y: 268, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
       headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
       footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
+      watermark:  { ...WATERMARK_DEFAULT },
     };
   }
 
@@ -149,6 +146,7 @@ export function defaultLayout(templateId) {
     country: { x: 18, y: 270, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
     headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
     footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
+    watermark:  { ...WATERMARK_DEFAULT },
   };
 }
 
@@ -195,7 +193,7 @@ function Deco({ templateId }) {
 /* ─────────────────────────────────────────────────────────────────────
    Draggable wrapper — handles move + corner resize
 ───────────────────────────────────────────────────────────────────── */
-function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize = false, scale = 1, children }) {
+function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize = false, scale = 1, zIndex = 4, children }) {
   const isSelected = editMode && selected === id;
 
   const startDrag = (e) => {
@@ -245,7 +243,7 @@ function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize =
           ? `2px solid ${ACCENT}`
           : editMode ? "1px dashed rgba(56,120,190,0.35)" : "none",
         outlineOffset: isSelected ? 2 : 1,
-        zIndex: isSelected ? 6 : 4,
+        zIndex: isSelected ? 6 : zIndex,
         userSelect: "none",
         boxSizing: "border-box",
       }}
@@ -314,6 +312,8 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
   const footerFs = growOnlySize(L, "footerText");
   // two lines (line-height 1.5 + 1.4, 1.5px gap) + 4px vertical padding + 1px top border
   const footerH = Math.max(FOOTER_H_MIN, Math.ceil(footerFs * 2.9 + 1.5 + 8 + 1));
+  const bannerH = hasCountriesBanner(rawTitle) ? Math.round(CARD_W / COUNTRIES_BANNER_RATIO) : 0;
+  const wm = L.watermark ?? WATERMARK_DEFAULT;
 
   return (
     <div
@@ -351,15 +351,12 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
 
       <Deco templateId={templateId} />
 
-      <div style={{
-        position: "absolute", top: "50%", left: "30%",
-        transform: "translate(-50%,-50%)",
-        width: 160, height: 160, opacity: th.watermarkOpacity,
-        pointerEvents: "none", zIndex: 1,
-      }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-      </div>
+      <Draggable id="watermark" el={wm} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} canResize scale={scale} zIndex={1}>
+        <div style={{ width: wm.w, height: wm.h, opacity: th.watermarkOpacity, pointerEvents: "none" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        </div>
+      </Draggable>
 
       <Selectable id="footerText" editMode={editMode} selected={selected} onSelect={onSelect} style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: footerH,
@@ -377,20 +374,13 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         </div>
       </Selectable>
 
-      {isPresbitero(rawTitle) && (
-        <div style={{
-          position: "absolute", bottom: footerH, left: 0, right: 0,
-          background: th.presbyterBg, borderTop: th.presbyterBorderTop,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          gap: 3, padding: "5px 8px", zIndex: 3,
-          flexWrap: "nowrap", overflow: "hidden",
-        }}>
-          {PRESBYTER_COUNTRIES.map(code => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={code} src={`https://flagcdn.com/w160/${code}.png`} alt={code}
-              style={{ height: 20, width: "auto", borderRadius: 2, border: th.presbyterImgBorder, flexShrink: 0 }} />
-          ))}
-        </div>
+      {bannerH > 0 && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={COUNTRIES_BANNER_SRC} alt="Países IEP" style={{
+          position: "absolute", bottom: footerH, left: 0,
+          width: CARD_W, height: bannerH,
+          display: "block", zIndex: 3,
+        }} />
       )}
 
       {/* ── Draggable elements ── */}
@@ -415,7 +405,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         top: th.topBarH + th.headerH,
         left: CARD_W - PHOTO_W_DEF - 40,
         right: 0,
-        bottom: footerH,
+        bottom: footerH + bannerH,
         zIndex: 2,
         overflow: "hidden",
       }}>
@@ -724,6 +714,7 @@ const FRONT_ELEMENT_LABELS = {
   country: "País",
   headerText: "Encabezado",
   footerText: "Pie",
+  watermark:  "Logo grande",
 };
 
 const BACK_ELEMENT_LABELS = {
