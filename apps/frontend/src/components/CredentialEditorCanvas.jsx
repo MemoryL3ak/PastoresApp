@@ -15,7 +15,7 @@
 import JsBarcode from "jsbarcode";
 import { useEffect, useRef, useState } from "react";
 import {
-  BRAND_BLUE, CARD_W, CARD_H, PrintCard,
+  BRAND_BLUE, CARD_W, CARD_H, PrintCard, trackImageWork,
   COUNTRIES_BANNER_SRC, COUNTRIES_BANNER_RATIO, formatExpiry, parsePastor, hasCountriesBanner,
 } from "@/lib/credentialShared";
 
@@ -87,33 +87,95 @@ function fitFontSize(text, { fontSize, fontWeight, fontFamily }, maxWidth, minSc
   return Math.max(fontSize * minScale, Math.floor((fontSize * maxWidth / w) * 2) / 2);
 }
 
-/* ── Photo aspect ratio (client only, cached per URL) ─────────────── */
-const aspectCache = new Map();
-function useImageAspect(src) {
-  const [aspect, setAspect] = useState(() => (src && aspectCache.get(src)) || null);
-  useEffect(() => {
-    if (!src) { setAspect(null); return; }
-    const cached = aspectCache.get(src);
-    setAspect(cached ?? null);
-    if (cached) return;
-    let cancelled = false;
+/* ── Photo: measure + bake the fade into the pixels ───────────────
+   CSS/SVG masks are dropped by Chromium when printing, so the left-edge fade (and the
+   top fade when the photo is shrunk) is baked into an image with real transparency.
+   Results are cached per photo/box shape; cross-origin photos need CORS (Supabase Storage
+   allows it) — if a photo can't be read, we fall back to the CSS mask (screen only). */
+const PHOTO_FADE_X   = 0.48; // fully opaque from this fraction of the width
+const PHOTO_FADE_TOP = 0.15; // fully opaque from this fraction of the height (shrunk only)
+const BAKE_MAX_SIDE  = 900;  // px — plenty for a 34mm-wide printed photo
+
+const photoCache = new Map();   // key → Promise<{ aspect, fadedSrc }>
+const photoResults = new Map(); // key → resolved value (for synchronous first render)
+
+function loadImage(src, withCors) {
+  return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
-      if (!img.naturalWidth || !img.naturalHeight) return;
-      const a = img.naturalWidth / img.naturalHeight;
-      aspectCache.set(src, a);
-      if (!cancelled) setAspect(a);
-    };
+    if (withCors) img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image load failed"));
     img.src = src;
+  });
+}
+
+function toBlobUrl(canvas) {
+  return new Promise((resolve) => {
+    const done = (blob) => resolve(blob ? URL.createObjectURL(blob) : null);
+    // WebP keeps alpha at a fraction of PNG's size; browsers without WebP encoding return PNG
+    canvas.toBlob(done, "image/webp", 0.9);
+  });
+}
+
+async function renderPhoto(src, maxBoxAspect, fadeTop) {
+  const isData = src.startsWith("data:");
+  let img;
+  try {
+    img = await loadImage(src, !isData);
+  } catch {
+    img = await loadImage(src, false); // no CORS: aspect only, no bake
+    return { aspect: img.naturalWidth / img.naturalHeight, fadedSrc: null };
+  }
+  const aspect = img.naturalWidth / img.naturalHeight;
+  const boxAspect = Math.min(aspect, maxBoxAspect); // wider photos get their sides cropped
+
+  const scale = Math.min(1, BAKE_MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+  const H = Math.round(img.naturalHeight * scale);
+  const W = Math.round(H * boxAspect);
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  // object-fit: cover, object-position: top center
+  const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+  ctx.drawImage(img, (W - dw) / 2, 0, dw, dh);
+
+  ctx.globalCompositeOperation = "destination-in";
+  const gx = ctx.createLinearGradient(0, 0, W, 0);
+  gx.addColorStop(0, "rgba(0,0,0,0)"); gx.addColorStop(PHOTO_FADE_X, "rgba(0,0,0,1)");
+  ctx.fillStyle = gx; ctx.fillRect(0, 0, W, H);
+  if (fadeTop) {
+    const gy = ctx.createLinearGradient(0, 0, 0, H);
+    gy.addColorStop(0, "rgba(0,0,0,0)"); gy.addColorStop(PHOTO_FADE_TOP, "rgba(0,0,0,1)");
+    ctx.fillStyle = gy; ctx.fillRect(0, 0, W, H);
+  }
+  try {
+    return { aspect, fadedSrc: await toBlobUrl(canvas) };
+  } catch {
+    return { aspect, fadedSrc: null }; // tainted canvas → CSS mask fallback
+  }
+}
+
+function usePhoto(src, maxBoxAspect, fadeTop) {
+  const key = src ? `${src}|${maxBoxAspect.toFixed(4)}|${fadeTop ? 1 : 0}` : null;
+  const [state, setState] = useState(() => (key && photoResults.get(key)) || null);
+  useEffect(() => {
+    if (!key) { setState(null); return; }
+    const ready = photoResults.get(key);
+    setState(ready ?? null);
+    if (ready) return;
+    let promise = photoCache.get(key);
+    if (!promise) {
+      promise = renderPhoto(src, maxBoxAspect, fadeTop)
+        .then((r) => { photoResults.set(key, r); return r; })
+        .catch(() => { const r = { aspect: null, fadedSrc: null }; photoResults.set(key, r); return r; });
+      photoCache.set(key, promise);
+      trackImageWork(promise);
+    }
+    let cancelled = false;
+    promise.then((r) => { if (!cancelled) setState(r); });
     return () => { cancelled = true; };
-  }, [src]);
-  const noteLoaded = (el) => {
-    if (!src || !el?.naturalWidth || !el?.naturalHeight) return;
-    const a = el.naturalWidth / el.naturalHeight;
-    aspectCache.set(src, a);
-    setAspect((prev) => (prev === a ? prev : a));
-  };
-  return [aspect, noteLoaded];
+  }, [key, src, maxBoxAspect, fadeTop]);
+  return state ?? { aspect: null, fadedSrc: null };
 }
 
 // Header/footer texts can only grow: min is the original size, max keeps them inside the card
@@ -414,7 +476,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
   const photoMaxH  = CARD_H - (th.topBarH + th.headerH) - footerH - bannerH;
   // The photo box follows the image's own proportion so portraits are never cropped;
   // wider images keep the default strip width and lose only their sides.
-  const [photoAspect, notePhotoLoaded] = useImageAspect(photo);
+  const { aspect: photoAspect, fadedSrc } = usePhoto(photo, PHOTO_W_DEF / photoMaxH, photoScale < 1);
   const photoBaseW = photoAspect ? Math.min(PHOTO_W_DEF, photoMaxH * photoAspect) : PHOTO_W_DEF;
   const photoW = photoBaseW * photoScale;
   const photoH = photoMaxH * photoScale;
@@ -570,13 +632,14 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         )}
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt={name} onLoad={(e) => notePhotoLoaded(e.currentTarget)} style={{
+          <img src={fadedSrc ?? photo} alt={name} style={{
             position: "absolute", inset: 0,
             width: "100%", height: "100%",
             objectFit: "cover",
             objectPosition: "top center",
             display: "block",
-            ...(photoScale < 1
+            // Fallback while the baked image isn't ready (or couldn't be made): CSS mask, screen only
+            ...(fadedSrc ? {} : photoScale < 1
               ? {
                   WebkitMaskImage: PHOTO_FADE_MASK_SHRUNK, maskImage: PHOTO_FADE_MASK_SHRUNK,
                   WebkitMaskComposite: "source-in", maskComposite: "intersect", // both fades apply

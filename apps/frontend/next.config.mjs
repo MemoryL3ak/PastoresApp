@@ -18,7 +18,8 @@ const nextConfig = {
   // localhost. Inactive unless API_PROXY_TARGET is set.
   async rewrites() {
     const target = process.env.API_PROXY_TARGET?.replace(/\/$/, "");
-    return target ? [{ source: "/api-proxy/:path*", destination: `${target}/:path*` }] : [];
+    if (!target || !/^https?:\/\//.test(target)) return [];
+    return [{ source: "/api-proxy/:path*", destination: `${target}/:path*` }];
   },
 };
 
