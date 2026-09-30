@@ -21,6 +21,8 @@ import {
 
 const ACCENT = BRAND_BLUE;
 const PHOTO_W_DEF = Math.round(CARD_W * 0.40); // 259
+// Photo fades in from its left edge (same curve as the former white overlay)
+const PHOTO_FADE_MASK = "linear-gradient(to right, transparent 0%, #000 48%)";
 
 // Header/footer texts can only grow: min is the original size, max keeps them inside the card
 const GROW_ONLY_LIMITS = {
@@ -399,38 +401,31 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         </div>
       </Draggable>
 
-      {/* ── Static photo strip — extends 40px left to eliminate hard boundary ── */}
+      {/* ── Static photo strip ──
+          The photo fades out toward its left edge with a mask (not a white overlay), so
+          anything behind it — like the big logo — stays visible through the fade. */}
       <div style={{
         position: "absolute",
         top: th.topBarH + th.headerH,
-        left: CARD_W - PHOTO_W_DEF - 40,
+        left: CARD_W - PHOTO_W_DEF,
         right: 0,
         bottom: footerH + bannerH,
         zIndex: 2,
         overflow: "hidden",
       }}>
         {photo ? (
-          <>
-            {/* Photo image anchored to the right */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo} alt={name} style={{
-              position: "absolute",
-              right: 0, top: 0, bottom: 0,
-              width: PHOTO_W_DEF,
-              objectFit: "cover",
-              objectPosition: "top center",
-              display: "block",
-            }} />
-            {/* Gradient overlay covering the full div — left 40px is pure white, then fades into photo */}
-            <div style={{
-              position: "absolute", inset: 0, pointerEvents: "none",
-              background: "linear-gradient(to right, #ffffff 0%, #ffffff 12%, rgba(255,255,255,0) 55%)",
-              WebkitPrintColorAdjust: "exact",
-              printColorAdjust: "exact",
-            }} />
-          </>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photo} alt={name} style={{
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "cover",
+            objectPosition: "top center",
+            display: "block",
+            WebkitMaskImage: PHOTO_FADE_MASK,
+            maskImage: PHOTO_FADE_MASK,
+          }} />
         ) : (
-          <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: PHOTO_W_DEF, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(0,0,0,0.2)" strokeWidth="1.2">
               <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
             </svg>
