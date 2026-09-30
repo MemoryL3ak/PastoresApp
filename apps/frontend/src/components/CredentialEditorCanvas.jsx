@@ -13,7 +13,7 @@
  */
 
 import JsBarcode from "jsbarcode";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BRAND_BLUE, CARD_W, CARD_H, PrintCard,
   COUNTRIES_BANNER_SRC, COUNTRIES_BANNER_RATIO, formatExpiry, parsePastor, hasCountriesBanner,
@@ -28,6 +28,93 @@ const PHOTO_FADE_MASK_SHRUNK = `${PHOTO_FADE_MASK}, linear-gradient(to bottom, t
 // The photo can only shrink (at 1 it already fills the height); it stays anchored bottom-right
 const PHOTO_SCALE_MIN = 0.4;
 const clampPhotoScale = (s) => Math.min(1, Math.max(PHOTO_SCALE_MIN, s));
+
+// Text may run this far past the photo's left edge — the fade is still transparent there
+const TEXT_INTO_PHOTO = 10;
+const TEXT_RIGHT_MARGIN = 16;
+const NAME_LINE_HEIGHT = 1.1;
+const NAME_MIN_SCALE = 0.6;   // long names wrap to two lines, then shrink down to this
+const CHURCH_MIN_SCALE = 0.7; // church names only shrink
+
+/* ── Text measurement (canvas, client only) ──────────────────────── */
+let measureCtx = null;
+const canMeasure = () => typeof document !== "undefined";
+function textWidth(text, font, letterSpacingEm = 0, fontSize = 0) {
+  if (!canMeasure()) return 0;
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  measureCtx.font = font;
+  return measureCtx.measureText(text).width + letterSpacingEm * fontSize * Math.max(0, text.length - 1);
+}
+
+/**
+ * Fits the name into maxWidth: one line if it fits, otherwise two balanced lines at the
+ * same size, otherwise two lines shrunk (down to NAME_MIN_SCALE). Server-side it just
+ * returns the text as-is (the pages that prerender only show short demo names).
+ */
+function layoutName(text, { fontSize, fontWeight, fontFamily }, letterSpacingEm, maxWidth) {
+  const single = { lines: [text], fontSize };
+  if (!canMeasure() || !text) return single;
+  const width = (t, fs) => textWidth(t, `${fontWeight} ${fs}px ${fontFamily}`, letterSpacingEm, fs);
+  if (width(text, fontSize) <= maxWidth) return single;
+
+  const words = text.split(/\s+/).filter(Boolean);
+  const bestSplit = (fs) => {
+    let best = null;
+    for (let i = 1; i < words.length; i++) {
+      const a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+      const w = Math.max(width(a, fs), width(b, fs));
+      if (!best || w < best.w) best = { lines: [a, b], w };
+    }
+    return best;
+  };
+  const minSize = fontSize * NAME_MIN_SCALE;
+  for (let fs = fontSize; fs >= minSize; fs -= 0.5) {
+    if (words.length === 1) {
+      if (width(text, fs) <= maxWidth) return { lines: [text], fontSize: fs };
+      continue;
+    }
+    const split = bestSplit(fs);
+    if (split.w <= maxWidth) return { lines: split.lines, fontSize: fs };
+  }
+  return words.length === 1 ? { lines: [text], fontSize: minSize } : { lines: bestSplit(minSize).lines, fontSize: minSize };
+}
+
+/** Shrinks a single-line text (down to minScale) so it fits maxWidth. */
+function fitFontSize(text, { fontSize, fontWeight, fontFamily }, maxWidth, minScale) {
+  if (!canMeasure() || !text) return fontSize;
+  const w = textWidth(text, `${fontWeight} ${fontSize}px ${fontFamily}`);
+  if (w <= maxWidth) return fontSize;
+  return Math.max(fontSize * minScale, Math.floor((fontSize * maxWidth / w) * 2) / 2);
+}
+
+/* ── Photo aspect ratio (client only, cached per URL) ─────────────── */
+const aspectCache = new Map();
+function useImageAspect(src) {
+  const [aspect, setAspect] = useState(() => (src && aspectCache.get(src)) || null);
+  useEffect(() => {
+    if (!src) { setAspect(null); return; }
+    const cached = aspectCache.get(src);
+    setAspect(cached ?? null);
+    if (cached) return;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const a = img.naturalWidth / img.naturalHeight;
+      aspectCache.set(src, a);
+      if (!cancelled) setAspect(a);
+    };
+    img.src = src;
+    return () => { cancelled = true; };
+  }, [src]);
+  const noteLoaded = (el) => {
+    if (!src || !el?.naturalWidth || !el?.naturalHeight) return;
+    const a = el.naturalWidth / el.naturalHeight;
+    aspectCache.set(src, a);
+    setAspect((prev) => (prev === a ? prev : a));
+  };
+  return [aspect, noteLoaded];
+}
 
 // Header/footer texts can only grow: min is the original size, max keeps them inside the card
 const GROW_ONLY_LIMITS = {
@@ -202,7 +289,7 @@ function Deco({ templateId }) {
 /* ─────────────────────────────────────────────────────────────────────
    Draggable wrapper — handles move + corner resize
 ───────────────────────────────────────────────────────────────────── */
-function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize = false, scale = 1, zIndex = 4, children }) {
+function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize = false, scale = 1, zIndex = 4, offsetY = 0, children }) {
   const isSelected = editMode && selected === id;
 
   const startDrag = (e) => {
@@ -244,7 +331,7 @@ function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize =
     <div
       style={{
         position: "absolute",
-        left: el.x, top: el.y,
+        left: el.x, top: el.y + offsetY,
         ...(el.w !== undefined ? { width: el.w } : {}),
         ...(el.h !== undefined ? { height: el.h } : {}),
         cursor: editMode ? "move" : "default",
@@ -325,6 +412,37 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
   const wm = L.watermark ?? WATERMARK_DEFAULT;
   const photoScale = clampPhotoScale(L.photo?.scale ?? 1);
   const photoMaxH  = CARD_H - (th.topBarH + th.headerH) - footerH - bannerH;
+  // The photo box follows the image's own proportion so portraits are never cropped;
+  // wider images keep the default strip width and lose only their sides.
+  const [photoAspect, notePhotoLoaded] = useImageAspect(photo);
+  const photoBaseW = photoAspect ? Math.min(PHOTO_W_DEF, photoMaxH * photoAspect) : PHOTO_W_DEF;
+  const photoW = photoBaseW * photoScale;
+  const photoH = photoMaxH * photoScale;
+  const photoLeft = CARD_W - photoW;
+  const photoTop  = CARD_H - footerH - bannerH - photoH;
+
+  // Right limit for a text block: the photo's edge if the block sits beside it, else the card edge
+  const textLimit = (top, height) =>
+    (top < photoTop + photoH && top + height > photoTop ? photoLeft + TEXT_INTO_PHOTO : CARD_W - TEXT_RIGHT_MARGIN);
+
+  const nameText = name.toUpperCase() || "NOMBRE PASTOR";
+  const nameEl = L.name;
+  const nameLayout = layoutName(
+    nameText, nameEl, -0.01,
+    textLimit(nameEl.y, 2 * nameEl.fontSize * NAME_LINE_HEIGHT) - nameEl.x
+  );
+  const nameLineH = nameLayout.fontSize * NAME_LINE_HEIGHT;
+  // Rule sits under the last line; everything below the name moves down by the extra height
+  const ruleTop = nameEl.y + (nameLayout.lines.length - 1) * nameLineH + nameLayout.fontSize * 1.15 + 3;
+  const nameShift = Math.max(0, ruleTop - (nameEl.y + nameEl.fontSize * 1.15 + 3));
+  const shiftFor = (el) => (el.y > nameEl.y ? nameShift : 0);
+
+  const churchText = (church || "Nombre Iglesia").toUpperCase();
+  const churchFs = fitFontSize(
+    churchText, L.church,
+    textLimit(L.church.y + shiftFor(L.church), L.church.fontSize * 1.3) - L.church.x,
+    CHURCH_MIN_SCALE
+  );
 
   // Dragging the photo's top-left corner inward shrinks it (it stays anchored bottom-right)
   const startPhotoResize = (e) => {
@@ -334,7 +452,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
     const onMove = (me) => {
       const dx = (me.clientX - sx) / scale;
       const dy = (me.clientY - sy) / scale;
-      const next = photoScale - (dx / PHOTO_W_DEF + dy / photoMaxH) / 2;
+      const next = photoScale - (dx / photoBaseW + dy / photoMaxH) / 2;
       onUpdate("photo", { ...L.photo, scale: clampPhotoScale(next) });
     };
     const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
@@ -433,8 +551,8 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         position: "absolute",
         right: 0,
         bottom: footerH + bannerH,
-        width: PHOTO_W_DEF * photoScale,
-        height: photoMaxH * photoScale,
+        width: photoW,
+        height: photoH,
         zIndex: 2,
         overflow: "hidden",
       }}>
@@ -452,7 +570,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         )}
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt={name} style={{
+          <img src={photo} alt={name} onLoad={(e) => notePhotoLoaded(e.currentTarget)} style={{
             position: "absolute", inset: 0,
             width: "100%", height: "100%",
             objectFit: "cover",
@@ -476,26 +594,26 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
       </Selectable>
 
       <Draggable id="name" el={L.name} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
-        <div style={{ fontSize: L.name.fontSize, fontWeight: L.name.fontWeight, fontFamily: L.name.fontFamily, color: th.dark, lineHeight: 1.1, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
-          {name.toUpperCase() || "NOMBRE PASTOR"}
+        <div style={{ fontSize: nameLayout.fontSize, fontWeight: L.name.fontWeight, fontFamily: L.name.fontFamily, color: th.dark, lineHeight: NAME_LINE_HEIGHT, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
+          {nameLayout.lines.map((line, i) => <div key={i}>{line}</div>)}
         </div>
       </Draggable>
 
       <div style={{
         position: "absolute",
-        left: L.name.x, top: L.name.y + L.name.fontSize * 1.15 + 3,
+        left: L.name.x, top: ruleTop,
         width: 50, height: 3, borderRadius: 2,
         background: th.ruleGrad,
         zIndex: 2, pointerEvents: "none",
       }} />
 
-      <Draggable id="doc" el={L.doc} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
+      <Draggable id="doc" el={L.doc} offsetY={shiftFor(L.doc)} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
         <div style={{ fontSize: L.doc.fontSize, fontWeight: L.doc.fontWeight, fontFamily: L.doc.fontFamily, color: th.dark, whiteSpace: "nowrap" }}>
           {doc || "Nº Documento"}
         </div>
       </Draggable>
 
-      <Draggable id="title" el={L.title} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
+      <Draggable id="title" el={L.title} offsetY={shiftFor(L.title)} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
         <div style={{
           display: "inline-flex",
           background: th.badgeBg,
@@ -508,13 +626,13 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         </div>
       </Draggable>
 
-      <Draggable id="church" el={L.church} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
-        <div style={{ fontSize: L.church.fontSize, fontWeight: L.church.fontWeight, fontFamily: L.church.fontFamily, color: th.muted, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+      <Draggable id="church" el={L.church} offsetY={shiftFor(L.church)} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
+        <div style={{ fontSize: churchFs, fontWeight: L.church.fontWeight, fontFamily: L.church.fontFamily, color: th.muted, textTransform: "uppercase", whiteSpace: "nowrap" }}>
           {church || "Nombre Iglesia"}
         </div>
       </Draggable>
 
-      <Draggable id="country" el={L.country} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
+      <Draggable id="country" el={L.country} offsetY={shiftFor(L.country)} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {country.code && (
             // eslint-disable-next-line @next/next/no-img-element
