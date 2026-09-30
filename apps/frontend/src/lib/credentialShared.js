@@ -77,19 +77,38 @@ export function parsePastor(pastor) {
   };
 }
 
+/* Background image work (e.g. baking the photo fade) that printing must wait for. */
+const pendingImageWork = new Set();
+export function trackImageWork(promise) {
+  pendingImageWork.add(promise);
+  promise.finally(() => pendingImageWork.delete(promise)).catch(() => {});
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+const loadedOnce = (img) => new Promise((resolve) => {
+  img.addEventListener("load", resolve, { once: true });
+  img.addEventListener("error", resolve, { once: true });
+});
+
 /**
- * Resolves once every <img> inside the element has loaded (or failed), or after the timeout.
- * Photos are remote files, so printing must wait for them or the credential prints blank.
+ * Resolves once pending image work is done and every <img> inside the element has loaded
+ * (or failed), or after the timeout. Finished work may swap image sources, so it re-checks
+ * after each round. Printing must wait for this or credentials print without their photo.
  */
-export function waitForImages(element, timeoutMs = 8000) {
-  if (!element) return Promise.resolve();
-  const pending = [...element.querySelectorAll("img")].filter((img) => !img.complete);
-  if (pending.length === 0) return Promise.resolve();
-  const loads = pending.map((img) => new Promise((resolve) => {
-    img.addEventListener("load", resolve, { once: true });
-    img.addEventListener("error", resolve, { once: true });
-  }));
-  return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+export async function waitForImages(element, timeoutMs = 8000) {
+  if (!element) return;
+  const deadline = Date.now() + timeoutMs;
+  for (let round = 0; round < 6 && Date.now() < deadline; round++) {
+    if (pendingImageWork.size > 0) {
+      await Promise.race([Promise.allSettled([...pendingImageWork]), sleep(deadline - Date.now())]);
+      await afterNextPaint(); // let React render the swapped sources
+    }
+    const pending = [...element.querySelectorAll("img")].filter((img) => !img.complete);
+    if (pending.length === 0 && pendingImageWork.size === 0) return;
+    if (pending.length > 0) {
+      await Promise.race([Promise.all(pending.map(loadedOnce)), sleep(deadline - Date.now())]);
+    }
+  }
 }
 
 /** Resolves after the browser has painted once more — lets React flush pending re-renders before printing. */
