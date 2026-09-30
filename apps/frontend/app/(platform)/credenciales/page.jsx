@@ -14,7 +14,8 @@ import CredentialEditorCanvas, {
 } from "@/components/CredentialEditorCanvas";
 import RoleGuard from "@/components/RoleGuard";
 import { usePastors } from "@/lib/hooks";
-import { resolveCountry } from "@/lib/credentialShared";
+import { api } from "@/lib/api";
+import { resolveCountry, waitForImages } from "@/lib/credentialShared";
 import { Check, Filter, Pencil, Printer, Search, Settings, Upload, UserCircle2, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
@@ -393,7 +394,13 @@ function MassPrintTab({ templateId, layout, backLayout, superintendent, signatur
   const [filterTitle, setFilterTitle] = useState("");
   const [filterChurch, setFilterChurch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const { pastors, isLoading } = usePastors({ search, limit: 500 });
+  const [preparingPrint, setPreparingPrint] = useState(false);
+  // The picker list skips photos; full records (with photo) are fetched only for selected pastors
+  const { pastors, isLoading } = usePastors({ search, limit: 500, photos: false });
+  const fullById = useRef(new Map());
+  const latestIds = useRef(selectedIds);
+  const pendingFull = useRef(Promise.resolve());
+  const [, setFullVersion] = useState(0);
 
   /* ── Filter options derived from loaded data ── */
   const uniqueCountries = useMemo(
@@ -422,9 +429,28 @@ function MassPrintTab({ templateId, layout, backLayout, superintendent, signatur
 
   const activeFilterCount = [filterCountry, filterTitle, filterChurch].filter(Boolean).length;
 
+  function resolveSelected(ids) {
+    return [...ids]
+      .map((id) => fullById.current.get(id) ?? pastors.find((p) => p.id === id))
+      .filter(Boolean);
+  }
+
   /* ── Fix: call onPrintPastorsChange OUTSIDE the state updater ── */
-  function syncPrint(nextIds) {
-    onPrintPastorsChange(pastors.filter((p) => nextIds.has(p.id)));
+  async function syncPrint(nextIds) {
+    latestIds.current = nextIds;
+    onPrintPastorsChange(resolveSelected(nextIds));
+
+    const missing = [...nextIds].filter((id) => !fullById.current.has(id));
+    if (missing.length === 0) return;
+    const request = api.listPastorsByIds(missing)
+      .then((rows) => {
+        rows.forEach((r) => fullById.current.set(r.id, r));
+        setFullVersion((v) => v + 1);
+        onPrintPastorsChange(resolveSelected(latestIds.current));
+      })
+      .catch(() => { /* keep printing without photos for the pastors that failed */ });
+    pendingFull.current = Promise.all([pendingFull.current, request]);
+    await request;
   }
 
   function toggle(id) {
@@ -450,11 +476,19 @@ function MassPrintTab({ templateId, layout, backLayout, superintendent, signatur
     setFilterChurch("");
   }
 
-  const selectedPastors = pastors.filter((p) => selectedIds.has(p.id));
+  const selectedPastors = resolveSelected(selectedIds);
   const filteredAllSelected =
     filteredPastors.length > 0 && filteredPastors.every((p) => selectedIds.has(p.id));
 
-  function handlePrint() {
+  async function handlePrint() {
+    setPreparingPrint(true);
+    try {
+      await pendingFull.current;                                  // selected pastors' photos
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0))); // let React render them
+      await waitForImages(document.getElementById("credential-print-area"));
+    } finally {
+      setPreparingPrint(false);
+    }
     const prev = document.title;
     document.title = "Credenciales IEP";
     window.print();
@@ -664,9 +698,10 @@ function MassPrintTab({ templateId, layout, backLayout, superintendent, signatur
               </div>
               <button
                 onClick={handlePrint}
-                className="flex items-center gap-2 bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+                disabled={preparingPrint}
+                className="flex items-center gap-2 bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors shadow-sm"
               >
-                <Printer size={15} /> Imprimir ({selectedPastors.length})
+                <Printer size={15} /> {preparingPrint ? "Preparando fotos..." : `Imprimir (${selectedPastors.length})`}
               </button>
             </div>
 

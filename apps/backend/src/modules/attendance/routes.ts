@@ -42,21 +42,25 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
   app.post("/checkin", async (request, reply) => {
     const payload = markAttendanceSchema.parse(request.body);
 
-    const { data: pastor, error: pastorError } = await app.supabaseAdmin
-      .schema("core")
-      .from("pastors")
-      .select("id")
-      .eq("id", payload.pastor_id)
-      .maybeSingle();
+    const [
+      { data: pastor, error: pastorError },
+      { data: session, error: sessionError }
+    ] = await Promise.all([
+      app.supabaseAdmin
+        .schema("core")
+        .from("pastors")
+        .select("id")
+        .eq("id", payload.pastor_id)
+        .maybeSingle(),
+      app.supabaseAdmin
+        .schema("events")
+        .from("event_sessions")
+        .select("id")
+        .eq("id", payload.event_session_id)
+        .maybeSingle()
+    ]);
     if (pastorError) return reply.badRequest(pastorError.message);
     if (!pastor) return reply.badRequest("Pastor not found");
-
-    const { data: session, error: sessionError } = await app.supabaseAdmin
-      .schema("events")
-      .from("event_sessions")
-      .select("id")
-      .eq("id", payload.event_session_id)
-      .maybeSingle();
     if (sessionError) return reply.badRequest(sessionError.message);
     if (!session) return reply.badRequest("Session not found");
 

@@ -55,7 +55,19 @@ export const api = {
     const qs = new URLSearchParams(params).toString();
     return apiFetch(`/pastors${qs ? "?" + qs : ""}`);
   },
-  listAllPastors: () => apiFetch("/pastors?limit=5000").then((r) => r.data ?? r),
+  // Bulk list without photos — callers use it for stats, lookups and exports
+  listAllPastors: () => apiFetch("/pastors?limit=5000&photos=false").then((r) => r.data ?? r),
+  // Full records (with photo) for a specific set of pastors, in chunks to keep URLs short
+  listPastorsByIds: async (ids) => {
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        apiFetch(`/pastors?ids=${chunk.join(",")}&limit=${chunk.length}`).then((r) => r.data ?? r)
+      )
+    );
+    return results.flat();
+  },
   createPastor: (payload) =>
     apiFetch("/pastors", { method: "POST", body: JSON.stringify(payload) }),
   updatePastor: (id, payload) =>

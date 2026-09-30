@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import PastorForm from "@/components/PastorForm";
 import PastoresList from "@/components/PastoresList";
 import { api } from "@/lib/api";
-import { usePastors, useAllChurches, useAllPastors, invalidatePastors } from "@/lib/hooks";
+import { usePastors, useAllChurches, invalidatePastors } from "@/lib/hooks";
 import { useToast } from "@/context/ToastContext";
 import { COUNTRIES } from "@/lib/geography";
 import { exportToCSV, exportToXLSX } from "@/lib/csv";
@@ -59,7 +59,6 @@ export default function PastoresModule() {
     country:  debouncedCountry,
   });
   const { churches } = useAllChurches();
-  const { pastors: allPastors } = useAllPastors();
 
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1); }, [debouncedName, debouncedIglesia, debouncedCountry, filterEstado]);
@@ -123,7 +122,11 @@ export default function PastoresModule() {
     } catch (err) { setMutateError(err.message || "No se pudo guardar el pastor"); }
   };
 
-  const handleExport = (format) => {
+  // The full list is only needed for exports, so it's fetched on demand
+  const handleExport = async (format) => {
+    let allPastors;
+    try { allPastors = await api.listAllPastors(); }
+    catch (err) { setMutateError(err.message || "No se pudo exportar"); return; }
     const columns = [
       { key: "first_name",      label: "Nombres" },
       { key: "last_name",       label: "Apellidos" },
@@ -168,7 +171,7 @@ export default function PastoresModule() {
           onEditPastor={(pastor) => { setSelectedPastor(pastor); setView("form"); }}
           onAddPastor={() => { setSelectedPastor(null); setView("form"); }}
           onExport={handleExport}
-          canExport={allPastors.length > 0}
+          canExport={total > 0}
         />
       )}
       {view === "form" && (

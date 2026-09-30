@@ -4,10 +4,38 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, FileDown, Save, UserCircle2, Upload, X, ChevronDown, Search } from "lucide-react";
 import { IEP_COUNTRIES, getDocumentInfo } from "../lib/geography";
 import CredentialEditorCanvas, { defaultLayout, defaultBackLayout, withLayoutDefaults } from "@/components/CredentialEditorCanvas";
+import { waitForImages } from "@/lib/credentialShared";
 
 const IEP_FOREIGN_COUNTRIES = IEP_COUNTRIES.filter((c) => c.code !== "CL");
 import { useToast } from "../context/ToastContext";
 import DatePicker from "./DatePicker";
+
+// Photos are stored inline with the pastor, so they're downscaled before saving.
+// 600×800 is enough for the printed credential (~34mm wide photo at 300dpi ≈ 400px).
+const PHOTO_MAX_W = 600;
+const PHOTO_MAX_H = 800;
+const PHOTO_QUALITY = 0.85;
+
+function resizePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, PHOTO_MAX_W / img.width, PHOTO_MAX_H / img.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff"; // transparent PNGs would otherwise turn black in JPEG
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", PHOTO_QUALITY));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la imagen")); };
+    img.src = url;
+  });
+}
 
 /* ── Searchable combobox ───────────────────────────────────────── */
 function SearchSelect({ value, onChange, options, placeholder = "Buscar..." }) {
@@ -142,12 +170,15 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
   const pastorFlagUrl = pastorCountry ? `https://flagcdn.com/w320/${pastorCountry.toLowerCase()}.png` : "";
   const churchFlagUrl = churchCountry ? `https://flagcdn.com/w320/${churchCountry.toLowerCase()}.png` : "";
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhotoUrl(reader.result);
-    reader.readAsDataURL(file);
+    try {
+      setPhotoUrl(await resizePhoto(file));
+    } catch (err) {
+      toast(err.message);
+    }
   };
 
   // Load credential layout and superintendent from localStorage (elite-azul template)
@@ -182,7 +213,8 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
     expiry_date:     fechaVencimiento,
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    await waitForImages(document.getElementById("credential-print-area-pastor"));
     const prev = document.title;
     document.title = "Credencial IEP";
     window.print();
