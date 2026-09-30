@@ -15,7 +15,7 @@ import CredentialEditorCanvas, {
 import RoleGuard from "@/components/RoleGuard";
 import { usePastors } from "@/lib/hooks";
 import { api } from "@/lib/api";
-import { resolveCountry, waitForImages } from "@/lib/credentialShared";
+import { afterNextPaint, resolveCountry, waitForImages } from "@/lib/credentialShared";
 import { Check, Filter, Pencil, Printer, Search, Settings, Upload, UserCircle2, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 
@@ -483,9 +483,10 @@ function MassPrintTab({ templateId, layout, backLayout, superintendent, signatur
   async function handlePrint() {
     setPreparingPrint(true);
     try {
-      await pendingFull.current;                                  // selected pastors' photos
-      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0))); // let React render them
+      await pendingFull.current;   // selected pastors' full records (with photo URL)
+      await afterNextPaint();      // let React render the photos
       await waitForImages(document.getElementById("credential-print-area"));
+      await afterNextPaint();      // photo boxes resize once their images are measured
     } finally {
       setPreparingPrint(false);
     }

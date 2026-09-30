@@ -92,6 +92,11 @@ export function waitForImages(element, timeoutMs = 8000) {
   return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
 }
 
+/** Resolves after the browser has painted once more — lets React flush pending re-renders before printing. */
+export function afterNextPaint() {
+  return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
 /** Wrapper that scales a full-size card (648×408) down to print size (324×204) */
 export function PrintCard({ children }) {
   return (

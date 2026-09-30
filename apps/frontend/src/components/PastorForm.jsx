@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, FileDown, Save, UserCircle2, Upload, X, ChevronDown, Search } from "lucide-react";
 import { IEP_COUNTRIES, getDocumentInfo } from "../lib/geography";
 import CredentialEditorCanvas, { defaultLayout, defaultBackLayout, withLayoutDefaults } from "@/components/CredentialEditorCanvas";
-import { waitForImages } from "@/lib/credentialShared";
+import { afterNextPaint, waitForImages } from "@/lib/credentialShared";
 
 const IEP_FOREIGN_COUNTRIES = IEP_COUNTRIES.filter((c) => c.code !== "CL");
 import { useToast } from "../context/ToastContext";
@@ -215,6 +215,7 @@ export default function PastorForm({ pastor, churches = [], onBack, onSave }) {
 
   const handlePrint = async () => {
     await waitForImages(document.getElementById("credential-print-area-pastor"));
+    await afterNextPaint(); // photo boxes resize once their images are measured
     const prev = document.title;
     document.title = "Credencial IEP";
     window.print();
