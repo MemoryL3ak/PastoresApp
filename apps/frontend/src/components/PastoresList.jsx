@@ -85,7 +85,7 @@ export default function PastoresList({
       <div className="flex flex-wrap gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3">
         <div className="relative flex-1 min-w-[160px]">
           <SearchIcon active={searching && !!searchName} />
-          <input type="text" className="field-input pl-9" placeholder="Buscar por nombre..."
+          <input type="text" className="field-input pl-9" placeholder="Buscar por nombre o RUT..."
             value={searchName} onChange={(e) => onSearchName(e.target.value)} />
         </div>
         <div className="relative flex-1 min-w-[160px]">
@@ -135,6 +135,8 @@ export default function PastoresList({
                       <img src={photoThumbUrl(p.photoUrl)} alt={p.nombre} loading="lazy"
                         className="w-20 max-h-36 rounded-lg object-contain ring-1 ring-slate-200 bg-slate-50 transition-transform group-hover:scale-[1.03] group-hover:ring-brand-400 cursor-zoom-in" />
                     </button>
+                  ) : p.photoLoading ? (
+                    <div className="h-28 w-20 rounded-lg bg-slate-200 animate-pulse" />
                   ) : (
                     <div className="h-28 w-20 rounded-lg bg-slate-100 flex items-center justify-center">
                       <UserCircle2 size={40} className="text-slate-400" />

@@ -41,6 +41,20 @@ export function useAllChurches() {
   return { churches: data ?? [], isLoading };
 }
 
+const NO_PASTORS = [];
+
+// Every pastor without photos — light enough to search and filter instantly in the browser.
+// Keyed under "pastors" so invalidatePastors() refreshes it after any change.
+export function useAllPastorsLite() {
+  const { data, error, isLoading, isValidating } = useSWR(["pastors", "all-lite"], api.listAllPastors);
+  return {
+    pastors:      data ?? NO_PASTORS,
+    isLoading,
+    isValidating,
+    error:        error?.message ?? null,
+  };
+}
+
 export function usePastors({ page = 1, limit = 50, search = "", status = "", iglesia = "", country = "", photos = true } = {}) {
   const { data, error, isLoading, isValidating } = useSWR(
     ["pastors", page, limit, search, status, iglesia, country, photos],
