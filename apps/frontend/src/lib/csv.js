@@ -40,7 +40,7 @@ export function exportToCSV(filename, rows, columns) {
 
 // ── XLSX ────────────────────────────────────────────────────────────
 
-export function exportToXLSX(filename, rows, columns, sheetName = "Datos") {
+function buildSheet(rows, columns) {
   const header = columns.map((c) => c.label);
   const body   = rows.map((row) => columns.map((c) => {
     const v = readCell(row, c);
@@ -56,8 +56,19 @@ export function exportToXLSX(filename, rows, columns, sheetName = "Datos") {
     return { wch: Math.min(40, max + 2) };
   });
 
+  return sheet;
+}
+
+export function exportToXLSX(filename, rows, columns, sheetName = "Datos") {
+  exportSheetsToXLSX(filename, [{ name: sheetName, rows, columns }]);
+}
+
+/** Multi-sheet workbook: sheets = [{ name, rows, columns }] */
+export function exportSheetsToXLSX(filename, sheets) {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, sheet, sheetName.slice(0, 31));
+  sheets.forEach(({ name, rows, columns }) => {
+    XLSX.utils.book_append_sheet(wb, buildSheet(rows, columns), name.slice(0, 31));
+  });
 
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });

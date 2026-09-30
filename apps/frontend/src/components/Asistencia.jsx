@@ -40,6 +40,14 @@ function useBarcodeScanner({ enabled, onScan, ignoreRef }) {
   }, [enabled, onScan, ignoreRef]);
 }
 
+function formatCheckin(dateIso) {
+  if (!dateIso) return "—";
+  const d = new Date(dateIso);
+  const date = d.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const time = d.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return `${date} ${time}`;
+}
+
 /* ── Feedback toast ────────────────────────────────────────────── */
 function ScanResult({ result }) {
   if (!result) return null;
@@ -373,6 +381,7 @@ export default function Asistencia() {
               <th>Pastor</th>
               <th>Iglesia</th>
               <th>Método</th>
+              <th>Fecha y hora</th>
               <th>Estado</th>
             </tr>
           </thead>
@@ -386,12 +395,13 @@ export default function Asistencia() {
                     {a.checkin_method === "barcode" ? "Escáner" : a.checkin_method === "qr" ? "QR" : "Manual"}
                   </span>
                 </td>
+                <td className="text-slate-500 tabular-nums whitespace-nowrap">{formatCheckin(a.checked_in_at)}</td>
                 <td><span className="badge-success">Presente</span></td>
               </tr>
             ))}
             {asistencia.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-12 text-center text-sm text-slate-400">
+                <td colSpan={5} className="py-12 text-center text-sm text-slate-400">
                   {selectedSession ? "No hay asistencia registrada para esta sesión." : "Selecciona un evento y sesión para ver la asistencia."}
                 </td>
               </tr>

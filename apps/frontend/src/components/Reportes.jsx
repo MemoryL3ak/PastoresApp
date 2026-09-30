@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { api } from "@/lib/api";
 import { COUNTRIES } from "@/lib/geography";
-import { exportToCSV } from "@/lib/csv";
+import { exportToCSV, exportSheetsToXLSX } from "@/lib/csv";
 
 /* ── Color palette ──────────────────────────────────────────────────── */
 const CHART_COLORS = ["#0a6ed1", "#3b82f6", "#60a5fa", "#93c5fd", "#a78bfa", "#34d399", "#f59e0b", "#f43f5e", "#06b6d4", "#94a3b8"];
@@ -34,6 +34,19 @@ function formatDate(dateIso) {
   if (!dateIso) return "—";
   return new Date(dateIso).toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" });
 }
+
+// Spreadsheet-friendly date (dd-mm-aaaa) and 24h time, in the viewer's local timezone
+function formatSheetDate(dateIso) {
+  if (!dateIso) return "";
+  return new Date(dateIso).toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function formatSheetTime(dateIso) {
+  if (!dateIso) return "";
+  return new Date(dateIso).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+}
+
+const CHECKIN_METHOD_LABELS = { barcode: "Escáner", qr: "QR", manual: "Manual" };
 
 function tally(items, getter) {
   const map = new Map();
@@ -166,6 +179,7 @@ export default function Reportes() {
   const [events, setEvents]                 = useState([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [attendance, setAttendance]         = useState([]);
+  const [exportingAttendance, setExportingAttendance] = useState(false);
   const [loading, setLoading]               = useState(true);
   const [error, setError]                   = useState("");
 
@@ -265,14 +279,51 @@ export default function Reportes() {
     ]);
   };
 
-  const exportAttendance = () => {
+  const exportAttendance = async () => {
     if (!selectedEvent) return;
-    exportToCSV(`asistencia-${selectedEvent.title.replace(/\s+/g, "_")}`, attendance, [
-      { label: "Evento",      value: () => selectedEvent.title },
-      { label: "Fecha",       value: (r) => formatDate(r.starts_at) },
-      { key: "session_label", label: "Sesión" },
-      { key: "attendance_count", label: "Asistentes" },
-    ]);
+    setExportingAttendance(true);
+    try {
+      // Per-pastor detail for every session of the event, with check-in date and time
+      const perSession = await Promise.all(
+        attendance.map(async (session) => {
+          const records = await api.listAttendanceBySession(session.session_id);
+          return records
+            .map((r) => ({ ...r, session_label: session.session_label }))
+            .sort((a, b) => new Date(a.checked_in_at) - new Date(b.checked_in_at));
+        })
+      );
+      const detail = perSession.flat();
+
+      exportSheetsToXLSX(`asistencia-${selectedEvent.title.replace(/\s+/g, "_")}`, [
+        {
+          name: "Resumen",
+          rows: attendance,
+          columns: [
+            { label: "Evento",           value: () => selectedEvent.title },
+            { label: "Fecha sesión",     value: (r) => formatSheetDate(r.starts_at) },
+            { key: "session_label",      label: "Sesión" },
+            { key: "attendance_count",   label: "Asistentes" },
+          ],
+        },
+        {
+          name: "Detalle",
+          rows: detail,
+          columns: [
+            { key: "session_label", label: "Sesión" },
+            { label: "Pastor",      value: (r) => r.pastors?.full_name ?? "" },
+            { label: "RUT",         value: (r) => r.pastors?.document_number ?? "" },
+            { label: "Iglesia",     value: (r) => r.pastors?.churches?.name ?? "" },
+            { label: "Método",      value: (r) => CHECKIN_METHOD_LABELS[r.checkin_method] ?? r.checkin_method },
+            { label: "Fecha",       value: (r) => formatSheetDate(r.checked_in_at) },
+            { label: "Hora",        value: (r) => formatSheetTime(r.checked_in_at) },
+          ],
+        },
+      ]);
+    } catch (err) {
+      setError(err.message || "No se pudo exportar la asistencia");
+    } finally {
+      setExportingAttendance(false);
+    }
   };
 
   return (
@@ -366,8 +417,8 @@ export default function Reportes() {
         subtitle={selectedEvent ? `${selectedEvent.title} · ${formatDate(selectedEvent.starts_at)}` : "Seleccioná un evento"}
         accent="bg-emerald-500"
         actions={
-          <button className="btn-secondary btn-sm" onClick={exportAttendance} disabled={!attendance.length}>
-            <Download size={14} /> CSV
+          <button className="btn-secondary btn-sm" onClick={exportAttendance} disabled={!attendance.length || exportingAttendance}>
+            <Download size={14} /> {exportingAttendance ? "Exportando..." : "Excel"}
           </button>
         }
       >
