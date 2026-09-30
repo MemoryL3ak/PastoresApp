@@ -23,15 +23,20 @@ const ACCENT = BRAND_BLUE;
 const PHOTO_W_DEF = Math.round(CARD_W * 0.40); // 259
 // Photo fades in from its left edge (same curve as the former white overlay)
 const PHOTO_FADE_MASK = "linear-gradient(to right, transparent 0%, #000 48%)";
+// When shrunk, its top edge no longer touches the header, so it fades in from the top too
+const PHOTO_FADE_MASK_SHRUNK = `${PHOTO_FADE_MASK}, linear-gradient(to bottom, transparent 0%, #000 15%)`;
+// The photo can only shrink (at 1 it already fills the height); it stays anchored bottom-right
+const PHOTO_SCALE_MIN = 0.4;
+const clampPhotoScale = (s) => Math.min(1, Math.max(PHOTO_SCALE_MIN, s));
 
 // Header/footer texts can only grow: min is the original size, max keeps them inside the card
 const GROW_ONLY_LIMITS = {
   headerText: { min: 10.5, max: 20 },
   footerText: { min: 6.5,  max: 11 },
 };
-const HEADER_SUB_RATIO = 8 / 10.5;
+const HEADER_SUB_RATIO = 8 / 10.5; // subtitle keeps its original proportion to the org name
 // Big background logo: originally centered at 30% / 50% of the card, 160×160
-const WATERMARK_DEFAULT = { x: Math.round(CARD_W * 0.3 - 80), y: CARD_H / 2 - 80, w: 160, h: 160 }; // subtitle keeps its original proportion to the org name
+const WATERMARK_DEFAULT = { x: Math.round(CARD_W * 0.3 - 80), y: CARD_H / 2 - 80, w: 160, h: 160 };
 const FOOTER_H_MIN = 32;
 
 function growOnlySize(L, key) {
@@ -134,6 +139,7 @@ export function defaultLayout(templateId) {
       headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
       footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
       watermark:  { ...WATERMARK_DEFAULT },
+      photo:      { scale: 1 },
     };
   }
 
@@ -149,6 +155,7 @@ export function defaultLayout(templateId) {
     headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
     footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
     watermark:  { ...WATERMARK_DEFAULT },
+    photo:      { scale: 1 },
   };
 }
 
@@ -316,6 +323,24 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
   const footerH = Math.max(FOOTER_H_MIN, Math.ceil(footerFs * 2.9 + 1.5 + 8 + 1));
   const bannerH = hasCountriesBanner(rawTitle) ? Math.round(CARD_W / COUNTRIES_BANNER_RATIO) : 0;
   const wm = L.watermark ?? WATERMARK_DEFAULT;
+  const photoScale = clampPhotoScale(L.photo?.scale ?? 1);
+  const photoMaxH  = CARD_H - (th.topBarH + th.headerH) - footerH - bannerH;
+
+  // Dragging the photo's top-left corner inward shrinks it (it stays anchored bottom-right)
+  const startPhotoResize = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const sx = e.clientX, sy = e.clientY;
+    const onMove = (me) => {
+      const dx = (me.clientX - sx) / scale;
+      const dy = (me.clientY - sy) / scale;
+      const next = photoScale - (dx / PHOTO_W_DEF + dy / photoMaxH) / 2;
+      onUpdate("photo", { ...L.photo, scale: clampPhotoScale(next) });
+    };
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   return (
     <div
@@ -404,15 +429,27 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
       {/* ── Static photo strip ──
           The photo fades out toward its left edge with a mask (not a white overlay), so
           anything behind it — like the big logo — stays visible through the fade. */}
-      <div style={{
+      <Selectable id="photo" editMode={editMode} selected={selected} onSelect={onSelect} style={{
         position: "absolute",
-        top: th.topBarH + th.headerH,
-        left: CARD_W - PHOTO_W_DEF,
         right: 0,
         bottom: footerH + bannerH,
+        width: PHOTO_W_DEF * photoScale,
+        height: photoMaxH * photoScale,
         zIndex: 2,
         overflow: "hidden",
       }}>
+        {editMode && selected === "photo" && (
+          <div
+            onMouseDown={startPhotoResize}
+            title="Arrastra para achicar la foto"
+            style={{
+              position: "absolute", top: 0, left: 0, zIndex: 10,
+              width: 12, height: 12,
+              background: "#fff", border: `2px solid ${ACCENT}`, borderRadius: 2,
+              cursor: "nwse-resize",
+            }}
+          />
+        )}
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt={name} style={{
@@ -421,8 +458,12 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
             objectFit: "cover",
             objectPosition: "top center",
             display: "block",
-            WebkitMaskImage: PHOTO_FADE_MASK,
-            maskImage: PHOTO_FADE_MASK,
+            ...(photoScale < 1
+              ? {
+                  WebkitMaskImage: PHOTO_FADE_MASK_SHRUNK, maskImage: PHOTO_FADE_MASK_SHRUNK,
+                  WebkitMaskComposite: "source-in", maskComposite: "intersect", // both fades apply
+                }
+              : { WebkitMaskImage: PHOTO_FADE_MASK, maskImage: PHOTO_FADE_MASK }),
           }} />
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 6 }}>
@@ -432,7 +473,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
             <span style={{ fontSize: 8, color: "rgba(0,0,0,0.3)", textTransform: "uppercase" }}>Foto</span>
           </div>
         )}
-      </div>
+      </Selectable>
 
       <Draggable id="name" el={L.name} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}>
         <div style={{ fontSize: L.name.fontSize, fontWeight: L.name.fontWeight, fontFamily: L.name.fontFamily, color: th.dark, lineHeight: 1.1, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
@@ -710,6 +751,7 @@ const FRONT_ELEMENT_LABELS = {
   headerText: "Encabezado",
   footerText: "Pie",
   watermark:  "Logo grande",
+  photo:      "Foto",
 };
 
 const BACK_ELEMENT_LABELS = {
@@ -776,7 +818,24 @@ export function CredentialControlPanel({ selected, layout, onUpdate, onSelect, o
         )}
       </div>
 
-      {growOnly ? (
+      {face === "front" && selected === "photo" ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tamaño</span>
+          <div>
+            <div className="flex justify-between mb-1">
+              <label className="text-xs text-slate-500">Tamaño de la foto</label>
+              <span className="text-xs font-medium text-slate-700">{Math.round(clampPhotoScale(el?.scale ?? 1) * 100)}%</span>
+            </div>
+            <input
+              type="range" min={PHOTO_SCALE_MIN} max="1" step="0.01"
+              value={clampPhotoScale(el?.scale ?? 1)}
+              onChange={e => patch("scale", clampPhotoScale(Number(e.target.value)))}
+              className="w-full accent-brand-600"
+            />
+          </div>
+          <p className="text-[11px] text-slate-400">Solo se puede achicar. La foto se mantiene abajo a la derecha. También puedes arrastrar su esquina superior izquierda.</p>
+        </div>
+      ) : growOnly ? (
         <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipografía</span>
           <div>
