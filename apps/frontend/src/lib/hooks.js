@@ -41,20 +41,16 @@ export function useAllChurches() {
   return { churches: data ?? [], isLoading };
 }
 
-export function useAllPastors() {
-  const { data, isLoading } = useSWR("pastors/all", api.listAllPastors);
-  return { pastors: data ?? [], isLoading };
-}
-
-export function usePastors({ page = 1, limit = 50, search = "", status = "", iglesia = "", country = "" } = {}) {
+export function usePastors({ page = 1, limit = 50, search = "", status = "", iglesia = "", country = "", photos = true } = {}) {
   const { data, error, isLoading, isValidating } = useSWR(
-    ["pastors", page, limit, search, status, iglesia, country],
+    ["pastors", page, limit, search, status, iglesia, country, photos],
     () => api.listPastors({
       page, limit,
       ...(search   ? { search }   : {}),
       ...(status   ? { status }   : {}),
       ...(iglesia  ? { iglesia }  : {}),
       ...(country  ? { country }  : {}),
+      ...(photos   ? {}           : { photos: "false" }),
     }),
     { keepPreviousData: true }
   );

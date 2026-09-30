@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CallerProfile } from "../../plugins/auth.js";
 import { stripAccents } from "../../lib/text.js";
 import { resolveCountryCodes } from "../../lib/countries.js";
+import { isDataUrl, removePhoto, storePhoto } from "../../lib/photos.js";
 
 /** Convert known Postgres errors to friendly Spanish messages. Returns null when no mapping applies. */
 function friendlyPastorError(err: { code?: string; message?: string; details?: string | null }): string | null {
@@ -55,6 +56,9 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       iglesia:  z.string().optional(),
       country:  z.string().optional(),
       status:   z.string().optional(),
+      // Photos are stored inline and are by far the heaviest column — bulk lists skip them
+      photos:   z.enum(["true", "false"]).default("true"),
+      ids:      z.string().optional(),
       page:     z.coerce.number().int().min(1).default(1),
       limit:    z.coerce.number().int().min(1).max(5000).default(50),
     }).parse(request.query);
@@ -62,7 +66,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
     const caller = request.callerProfile;
     const offset = (query.page - 1) * query.limit;
     // !inner forces an inner join so filters on churches.* actually exclude non-matching rows.
-    const SELECT = "id, first_name, last_name, document_number, email, phone, pastoral_status, degree_title, photo_url, expiry_date, church_id, country, zone, foreign_zone, churches!inner(id, name, country)";
+    const SELECT = `id, first_name, last_name, document_number, email, phone, pastoral_status, degree_title, ${query.photos === "true" ? "photo_url, " : ""}expiry_date, church_id, country, zone, foreign_zone, churches!inner(id, name, country)`;
 
     let dbQuery = app.supabaseAdmin
       .schema("core")
@@ -71,6 +75,10 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       .order("created_at", { ascending: false })
       .range(offset, offset + query.limit - 1);
 
+    if (query.ids) {
+      const ids = query.ids.split(",").map((id) => id.trim()).filter(Boolean);
+      dbQuery = dbQuery.in("id", ids);
+    }
     if (query.search)  dbQuery = dbQuery.ilike("full_name_unaccent", `%${stripAccents(query.search)}%`);
     if (query.status)  dbQuery = dbQuery.eq("pastoral_status", query.status);
     if (query.iglesia) dbQuery = dbQuery.ilike("churches.name_unaccent", `%${stripAccents(query.iglesia)}%`);
@@ -123,6 +131,15 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       return reply.forbidden("La iglesia seleccionada no pertenece a tu país asignado");
     }
 
+    if (isDataUrl(payload.photo_url)) {
+      try {
+        payload.photo_url = await storePhoto(app.supabaseAdmin, payload.photo_url);
+      } catch (err) {
+        request.log.error(err, "photo upload failed");
+        return reply.badRequest("No se pudo guardar la foto");
+      }
+    }
+
     const { data, error } = await app.supabaseAdmin
       .schema("core")
       .from("pastors")
@@ -130,7 +147,10 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       .select("*")
       .single();
 
-    if (error) return reply.badRequest(friendlyPastorError(error) ?? error.message);
+    if (error) {
+      void removePhoto(app.supabaseAdmin, payload.photo_url);
+      return reply.badRequest(friendlyPastorError(error) ?? error.message);
+    }
     return reply.code(201).send(data);
   });
 
@@ -142,7 +162,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
     const { data: existing, error: fetchError } = await app.supabaseAdmin
       .schema("core")
       .from("pastors")
-      .select("country, church_id")
+      .select("country, church_id, photo_url")
       .eq("id", id)
       .single();
 
@@ -170,6 +190,15 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       (payload as any).country = caller.assigned_country;
     }
 
+    if (isDataUrl(payload.photo_url)) {
+      try {
+        payload.photo_url = await storePhoto(app.supabaseAdmin, payload.photo_url);
+      } catch (err) {
+        request.log.error(err, "photo upload failed");
+        return reply.badRequest("No se pudo guardar la foto");
+      }
+    }
+
     const { data, error } = await app.supabaseAdmin
       .schema("core")
       .from("pastors")
@@ -178,7 +207,14 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
       .select("*")
       .single();
 
-    if (error) return reply.badRequest(friendlyPastorError(error) ?? error.message);
+    if (error) {
+      if (payload.photo_url !== existing.photo_url) void removePhoto(app.supabaseAdmin, payload.photo_url);
+      return reply.badRequest(friendlyPastorError(error) ?? error.message);
+    }
+    // Photo replaced or removed → delete the old file
+    if (payload.photo_url !== undefined && payload.photo_url !== existing.photo_url) {
+      void removePhoto(app.supabaseAdmin, existing.photo_url);
+    }
     return data;
   });
 
@@ -190,7 +226,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
     const { data: existing, error: fetchError } = await app.supabaseAdmin
       .schema("core")
       .from("pastors")
-      .select("country")
+      .select("country, photo_url")
       .eq("id", id)
       .single();
 
@@ -202,6 +238,7 @@ export const pastorRoutes: FastifyPluginAsync = async (app) => {
 
     const { error } = await app.supabaseAdmin.schema("core").from("pastors").delete().eq("id", id);
     if (error) return reply.badRequest(error.message);
+    void removePhoto(app.supabaseAdmin, existing.photo_url);
     return reply.code(204).send();
   });
 };

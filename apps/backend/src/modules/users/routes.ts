@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
+import { clearAuthCache } from "../../plugins/auth.js";
 
 const ROLES = ["admin", "country_assigned", "viewer"] as const;
 
@@ -94,6 +95,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
         .single();
 
       if (error) return reply.badRequest(error.message);
+      clearAuthCache();
       return { ...data, email: email ?? undefined };
     }
 
@@ -113,6 +115,7 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     // Deleting the auth user cascades to core.profiles (FK ON DELETE CASCADE).
     const { error } = await app.supabaseAdmin.auth.admin.deleteUser(id);
     if (error) return reply.badRequest(error.message);
+    clearAuthCache();
 
     return reply.code(204).send();
   });

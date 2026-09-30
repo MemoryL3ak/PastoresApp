@@ -17,14 +17,20 @@ const createSessionSchema = z.object({
 });
 
 export const eventRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/", async (_request, reply) => {
-    // Auto-complete events whose end date has passed
-    await app.supabaseAdmin
+  app.get("/", async (request, reply) => {
+    const nowIso = new Date().toISOString();
+
+    // Auto-complete events whose end date has passed. Not awaited: the response
+    // applies the same rule below, so the list doesn't wait on this write.
+    void app.supabaseAdmin
       .schema("events")
       .from("events")
       .update({ status: "completed" })
       .in("status", ["planned", "active"])
-      .lt("ends_at", new Date().toISOString());
+      .lt("ends_at", nowIso)
+      .then(({ error }) => {
+        if (error) request.log.error(error, "auto-complete events failed");
+      });
 
     const { data, error } = await app.supabaseAdmin
       .schema("events")
@@ -33,7 +39,12 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       .order("starts_at", { ascending: false });
 
     if (error) return reply.badRequest(error.message);
-    return data;
+    const now = Date.parse(nowIso);
+    return (data ?? []).map((event) =>
+      (event.status === "planned" || event.status === "active") && event.ends_at && Date.parse(event.ends_at) < now
+        ? { ...event, status: "completed" }
+        : event
+    );
   });
 
   app.post("/", async (request, reply) => {

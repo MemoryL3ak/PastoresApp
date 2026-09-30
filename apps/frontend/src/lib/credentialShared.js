@@ -68,6 +68,21 @@ export function parsePastor(pastor) {
   };
 }
 
+/**
+ * Resolves once every <img> inside the element has loaded (or failed), or after the timeout.
+ * Photos are remote files, so printing must wait for them or the credential prints blank.
+ */
+export function waitForImages(element, timeoutMs = 8000) {
+  if (!element) return Promise.resolve();
+  const pending = [...element.querySelectorAll("img")].filter((img) => !img.complete);
+  if (pending.length === 0) return Promise.resolve();
+  const loads = pending.map((img) => new Promise((resolve) => {
+    img.addEventListener("load", resolve, { once: true });
+    img.addEventListener("error", resolve, { once: true });
+  }));
+  return Promise.race([Promise.all(loads), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
+}
+
 /** Wrapper that scales a full-size card (648×408) down to print size (324×204) */
 export function PrintCard({ children }) {
   return (

@@ -39,3 +39,6 @@ supabase/.branches/
 *.njsproj
 *.sln
 *.sw?
+
+# Photo migration backups (contain personal data)
+photo-backup-*.jsonl

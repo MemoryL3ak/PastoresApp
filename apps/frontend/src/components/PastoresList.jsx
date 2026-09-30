@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import ExportMenu from "./ExportMenu";
 import { useAuth } from "@/context/AuthContext";
+import { photoThumbUrl } from "@/lib/photos";
 
 function SkeletonRow() {
   return (
@@ -131,7 +132,7 @@ export default function PastoresList({
                       className="block group relative focus:outline-none focus:ring-2 focus:ring-brand-500 rounded-lg"
                       aria-label={`Ver foto de ${p.nombre}`}
                     >
-                      <img src={p.photoUrl} alt={p.nombre}
+                      <img src={photoThumbUrl(p.photoUrl)} alt={p.nombre} loading="lazy"
                         className="w-20 max-h-36 rounded-lg object-contain ring-1 ring-slate-200 bg-slate-50 transition-transform group-hover:scale-[1.03] group-hover:ring-brand-400 cursor-zoom-in" />
                     </button>
                   ) : (
