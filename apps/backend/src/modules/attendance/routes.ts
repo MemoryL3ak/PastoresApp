@@ -25,7 +25,7 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     const { data: pastors, error: pastorsError } = await app.supabaseAdmin
       .schema("core")
       .from("pastors")
-      .select("id, full_name, churches(name)")
+      .select("id, full_name, document_number, churches(name)")
       .in("id", pastorIds);
 
     if (pastorsError) return reply.badRequest(pastorsError.message);
