@@ -16,7 +16,7 @@ import JsBarcode from "jsbarcode";
 import { useEffect, useRef, useState } from "react";
 import {
   BRAND_BLUE, CARD_W, CARD_H, PrintCard, trackImageWork,
-  COUNTRIES_BANNER_SRC, COUNTRIES_BANNER_RATIO, formatExpiry, parsePastor, hasCountriesBanner,
+  COUNTRIES_BANNER_SRC, COUNTRIES_BANNER_RATIO, formatExpiry, parsePastor,
 } from "@/lib/credentialShared";
 
 const ACCENT = BRAND_BLUE;
@@ -483,7 +483,7 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
   const footerFs = growOnlySize(L, "footerText");
   // two lines (line-height 1.5 + 1.4, 1.5px gap) + 4px vertical padding + 1px top border
   const footerH = Math.max(FOOTER_H_MIN, Math.ceil(footerFs * 2.9 + 1.5 + 8 + 1));
-  const bannerH = hasCountriesBanner(rawTitle) ? Math.round(CARD_W / COUNTRIES_BANNER_RATIO) : 0;
+  const bannerH = Math.round(CARD_W / COUNTRIES_BANNER_RATIO); // flags banner on every credential
   const wm = L.watermark ?? WATERMARK_DEFAULT;
   const photoScale = clampPhotoScale(L.photo?.scale ?? 1);
   const photoMaxH  = CARD_H - (th.topBarH + th.headerH) - footerH - bannerH;
