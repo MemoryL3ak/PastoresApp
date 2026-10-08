@@ -184,6 +184,11 @@ const GROW_ONLY_LIMITS = {
   footerText: { min: 6.5,  max: 11 },
 };
 const HEADER_SUB_RATIO = 8 / 10.5; // subtitle keeps its original proportion to the org name
+// Header text block: x/y is its anchor point (centre of the block by default), mid-height of the header band
+const HEADER_ALIGN_ANCHOR = { left: 0, center: 0.5, right: 1 };
+const headerTextDefault = (th) => ({
+  x: CARD_W / 2, y: th.topBarH + th.headerH / 2, align: "center", fontSize: GROW_ONLY_LIMITS.headerText.min,
+});
 // Big background logo: originally centered at 30% / 50% of the card, 160×160
 const WATERMARK_DEFAULT = { x: Math.round(CARD_W * 0.3 - 80), y: CARD_H / 2 - 80, w: 160, h: 160 };
 const FOOTER_H_MIN = 32;
@@ -193,9 +198,14 @@ function growOnlySize(L, key) {
   return Math.min(max, Math.max(min, L[key]?.fontSize ?? min));
 }
 
-// Stored layouts may predate newer elements — fill any missing keys from the defaults
+// Stored layouts may predate newer elements or fields — fill anything missing from the defaults
 export function withLayoutDefaults(layout, defaults) {
-  return { ...defaults, ...(layout ?? {}) };
+  const merged = { ...defaults, ...(layout ?? {}) };
+  for (const key of Object.keys(defaults)) {
+    const d = defaults[key], l = layout?.[key];
+    if (d && typeof d === "object" && l && typeof l === "object") merged[key] = { ...d, ...l };
+  }
+  return merged;
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -285,7 +295,7 @@ export function defaultLayout(templateId) {
       title:   { x: 20, y: 224, fontSize: 14, fontWeight: 700, fontFamily: "Arial, sans-serif" },
       church:  { x: 20, y: 250, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
       country: { x: 20, y: 268, fontSize: 13, fontWeight: 400, fontFamily: "Arial, sans-serif" },
-      headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
+      headerText: headerTextDefault(th),
       footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
       watermark:  { ...WATERMARK_DEFAULT },
       photo:      { scale: 1 },
@@ -301,7 +311,7 @@ export function defaultLayout(templateId) {
     title:   { x: 18, y: 225, fontSize: 12, fontWeight: 700, fontFamily: "Arial, sans-serif" },
     church:  { x: 18, y: 251, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
     country: { x: 18, y: 270, fontSize: 12, fontWeight: 400, fontFamily: "Arial, sans-serif" },
-    headerText: { fontSize: GROW_ONLY_LIMITS.headerText.min },
+    headerText: headerTextDefault(th),
     footerText: { fontSize: GROW_ONLY_LIMITS.footerText.min },
     watermark:  { ...WATERMARK_DEFAULT },
     photo:      { scale: 1 },
@@ -351,7 +361,7 @@ function Deco({ templateId }) {
 /* ─────────────────────────────────────────────────────────────────────
    Draggable wrapper — handles move + corner resize
 ───────────────────────────────────────────────────────────────────── */
-function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize = false, scale = 1, zIndex = 4, offsetY = 0, children }) {
+function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize = false, scale = 1, zIndex = 4, offsetY = 0, anchor = null, children }) {
   const isSelected = editMode && selected === id;
 
   const startDrag = (e) => {
@@ -394,6 +404,7 @@ function Draggable({ id, el, onUpdate, editMode, selected, onSelect, canResize =
       style={{
         position: "absolute",
         left: el.x, top: el.y + offsetY,
+        ...(anchor ? { transform: `translate(${-anchor.x * 100}%, ${-anchor.y * 100}%)` } : {}),
         ...(el.w !== undefined ? { width: el.w } : {}),
         ...(el.h !== undefined ? { height: el.h } : {}),
         cursor: editMode ? "move" : "default",
@@ -467,6 +478,8 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
     ? (rawTitle.toUpperCase().startsWith("PASTOR") ? rawTitle : `PASTOR ${rawTitle}`)
     : "PASTOR";
   const headerFs = growOnlySize(L, "headerText");
+  const header = { ...headerTextDefault(th), ...(L.headerText ?? {}) };
+  const headerAlign = HEADER_ALIGN_ANCHOR[header.align] === undefined ? "center" : header.align;
   const footerFs = growOnlySize(L, "footerText");
   // two lines (line-height 1.5 + 1.4, 1.5px gap) + 4px vertical padding + 1px top border
   const footerH = Math.max(FOOTER_H_MIN, Math.ceil(footerFs * 2.9 + 1.5 + 8 + 1));
@@ -545,16 +558,20 @@ function EditableFront({ pastor, layout: L, onUpdate, editMode, selected, onSele
         padding: "7px 14px",
         zIndex: 3,
         ...(th.headerBorderBottom ? { borderBottom: th.headerBorderBottom } : {}),
-      }}>
-        <Selectable id="headerText" editMode={editMode} selected={selected} onSelect={onSelect} style={{ marginLeft: 62 }}>
+      }} />
+
+      {/* Header text block — movable; its x/y is the anchor given by the alignment */}
+      <Draggable id="headerText" el={header} onUpdate={onUpdate} editMode={editMode} selected={selected} onSelect={onSelect} scale={scale}
+        anchor={{ x: HEADER_ALIGN_ANCHOR[headerAlign], y: 0.5 }}>
+        <div style={{ textAlign: headerAlign }}>
           <div style={{ fontSize: headerFs, fontWeight: th.headerOrgWeight, color: th.headerOrgColor, letterSpacing: "0.14em", textTransform: "uppercase", lineHeight: 1.3, whiteSpace: "nowrap" }}>
             Iglesia Evangélica Pentecostal
           </div>
           <div style={{ fontSize: headerFs * HEADER_SUB_RATIO, color: th.headerSubColor, fontWeight: th.headerSubWeight, letterSpacing: "0.09em", textTransform: "uppercase", marginTop: 2, whiteSpace: "nowrap" }}>
             Credencial de Pastor {rawTitle}
           </div>
-        </Selectable>
-      </div>
+        </div>
+      </Draggable>
 
       <Deco templateId={templateId} />
 
@@ -954,6 +971,28 @@ const FONT_OPTIONS = [
   { label: "Courier New",     value: '"Courier New", monospace' },
 ];
 
+const FIELD_CLS = "w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600";
+
+function PositionFields({ el, patch }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Posición</span>
+      <div className="grid grid-cols-2 gap-2 mt-2">
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">X (px)</label>
+          <input type="number" value={Math.round(el.x ?? 0)} onChange={e => patch("x", Number(e.target.value))} className={FIELD_CLS} />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">Y (px)</label>
+          <input type="number" value={Math.round(el.y ?? 0)} onChange={e => patch("y", Number(e.target.value))} className={FIELD_CLS} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const HEADER_ALIGN_OPTIONS = [["left", "Izquierda"], ["center", "Centro"], ["right", "Derecha"]];
+
 export function CredentialControlPanel({ selected, layout, onUpdate, onSelect, onResetElement, onResetAll, face = "front" }) {
   const elementLabels = face === "front" ? FRONT_ELEMENT_LABELS : BACK_ELEMENT_LABELS;
   const textKeys      = face === "front" ? FRONT_TEXT_KEYS      : BACK_TEXT_KEYS;
@@ -1017,6 +1056,31 @@ export function CredentialControlPanel({ selected, layout, onUpdate, onSelect, o
           <p className="text-[11px] text-slate-400">Solo se puede achicar. La foto se mantiene abajo a la derecha. También puedes arrastrar su esquina superior izquierda.</p>
         </div>
       ) : growOnly ? (
+        <>
+        {selected === "headerText" && (
+          <>
+            <PositionFields el={el} patch={patch} />
+            <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Alineación</span>
+              <div className="flex gap-1 mt-2">
+                {HEADER_ALIGN_OPTIONS.map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => patch("align", value)}
+                    className={`flex-1 text-xs py-1 rounded border transition-colors ${
+                      (el.align ?? "center") === value
+                        ? "border-brand-600 bg-brand-50 text-brand-700"
+                        : "border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-400">X/Y marcan el centro del bloque, o su borde izquierdo/derecho según la alineación.</p>
+            </div>
+          </>
+        )}
         <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tipografía</span>
           <div>
@@ -1033,30 +1097,10 @@ export function CredentialControlPanel({ selected, layout, onUpdate, onSelect, o
           </div>
           <p className="text-[11px] text-slate-400">Solo se puede agrandar desde el tamaño original.</p>
         </div>
+        </>
       ) : el ? (
         <>
-          {/* Position */}
-          <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Posición</span>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">X (px)</label>
-                <input
-                  type="number" value={Math.round(el.x)}
-                  onChange={e => patch("x", Number(e.target.value))}
-                  className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-1">Y (px)</label>
-                <input
-                  type="number" value={Math.round(el.y)}
-                  onChange={e => patch("y", Number(e.target.value))}
-                  className="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600"
-                />
-              </div>
-            </div>
-          </div>
+          <PositionFields el={el} patch={patch} />
 
           {/* Size (photo, logo, barcode) */}
           {hasExplicitSize && (
