@@ -56,14 +56,9 @@ export function isPresbitero(title) {
   return title.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes("PRESBIT");
 }
 
-// Flags banner (public/banner-banderas.png) shown on presb\u00edtero and superintendente credentials
+// Flags banner (public/banner-banderas.png) shown above the footer on every credential
 export const COUNTRIES_BANNER_SRC   = "/banner-banderas.png";
 export const COUNTRIES_BANNER_RATIO = 5614 / 195; // width / height of the image
-
-export function hasCountriesBanner(title) {
-  const t = (title ?? "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  return t.includes("PRESBIT") || t.includes("SUPERINTEND");
-}
 
 export function parsePastor(pastor) {
   return {
