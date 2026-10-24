@@ -182,7 +182,7 @@ function SessionsPanel({ event, canEdit, toast, onChanged }) {
               {canEdit && (
                 <span className="ml-auto flex items-center gap-1">
                   <button type="button" className="btn-ghost btn-sm gap-1" onClick={() => startEdit(s)} disabled={busy}><Pencil size={12} />Editar</button>
-                  <button type="button" className="btn-ghost btn-sm text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setToDelete(s)} disabled={busy}><Trash2 size={12} /></button>
+                  <button type="button" className="btn-ghost btn-sm gap-1 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setToDelete(s)} disabled={busy}><Trash2 size={12} />Eliminar</button>
                 </span>
               )}
             </div>
@@ -347,8 +347,14 @@ export default function Eventos() {
                 </select>
               </label>
             </div>
-            <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
-              <button type="button" className="btn-secondary" onClick={handleCancel}>Cancelar</button>
+            <div className="flex flex-wrap items-center gap-3 mt-5 pt-4 border-t border-slate-100">
+              {editingId && (
+                <button type="button" className="btn-ghost btn-sm gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 mr-auto"
+                  onClick={() => setToDelete(events.find((ev) => ev.id === editingId) ?? null)}>
+                  <Trash2 size={13} /> Eliminar evento
+                </button>
+              )}
+              <button type="button" className="btn-secondary ml-auto" onClick={handleCancel}>Cancelar</button>
               <button type="submit" className="btn-primary">{editingId ? "Guardar cambios" : "Crear evento"}</button>
             </div>
           </form>
@@ -400,10 +406,7 @@ export default function Eventos() {
                       </td>
                       {canEdit && (
                         <td>
-                          <div className="flex items-center gap-2">
-                            <button className="btn-ghost btn-sm gap-1" type="button" onClick={() => openEditForm(ev)}><Pencil size={13} />Editar</button>
-                            <button className="btn-ghost btn-sm text-red-500 hover:text-red-700 hover:bg-red-50" type="button" onClick={() => setToDelete(ev)}>Eliminar</button>
-                          </div>
+                          <button className="btn-ghost btn-sm gap-1" type="button" onClick={() => openEditForm(ev)}><Pencil size={13} />Editar</button>
                         </td>
                       )}
                     </tr>,
@@ -425,11 +428,11 @@ export default function Eventos() {
 
       <ConfirmDialog
         open={Boolean(toDelete)}
-        title="Eliminar evento"
-        message={`¿Estás seguro que deseas eliminar "${toDelete?.title}"? Se eliminarán también todas sus jornadas y registros de asistencia. Esta acción no se puede deshacer.`}
-        confirmLabel="Sí, eliminar"
+        title="Eliminar el evento completo"
+        message={`Vas a eliminar el EVENTO "${toDelete?.title}" entero, con sus ${toDelete?.sessions_count ?? 0} jornada${(toDelete?.sessions_count ?? 0) !== 1 ? "s" : ""} y toda la asistencia registrada. Esta acción no se puede deshacer. Si solo quieres borrar una jornada, cancela y usa "Eliminar" dentro del panel Jornadas.`}
+        confirmLabel="Sí, eliminar el evento"
         onCancel={() => setToDelete(null)}
-        onConfirm={() => { handleDelete(toDelete.id); setToDelete(null); }}
+        onConfirm={() => { handleDelete(toDelete.id); setToDelete(null); handleCancel(); }}
       />
     </div>
   );
