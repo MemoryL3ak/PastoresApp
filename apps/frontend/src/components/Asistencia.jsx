@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardCheck, Search, X, CheckSquare2, ScanBarcode, CheckCircle2, AlertCircle } from "lucide-react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import {
+  eventDays, formatDayKey, groupJornadas, localDateKey, localTime, localToIso, sessionForDay, todayKey,
+} from "../lib/jornadas";
 
 /* ── Barcode scanner hook ──────────────────────────────────────── */
 // Physical barcode scanners type very fast (< 50ms/char) then press Enter.
@@ -40,13 +43,6 @@ function useBarcodeScanner({ enabled, onScan, ignoreRef }) {
   }, [enabled, onScan, ignoreRef]);
 }
 
-// "Jornada AM · 24 oct" — multi-day events repeat the same labels, so the date tells them apart
-function sessionOptionLabel(session) {
-  if (!session.starts_at) return session.label;
-  const date = new Date(session.starts_at).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
-  return `${session.label} · ${date}`;
-}
-
 function formatCheckin(dateIso) {
   if (!dateIso) return "—";
   const d = new Date(dateIso);
@@ -72,13 +68,23 @@ function ScanResult({ result }) {
 }
 
 /* ── Main component ────────────────────────────────────────────── */
+const ALL_DAYS = "all";
+
+// Default jornada: the one happening now, else the first of the day
+function pickDefaultJornada(jornadas) {
+  if (jornadas.length === 0) return "";
+  const now = localTime(Date.now());
+  return (jornadas.find((j) => j.start <= now && now <= j.end) ?? jornadas[0]).label;
+}
+
 export default function Asistencia() {
   const { canEdit } = useAuth();
   const [events, setEvents] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [pastores, setPastores] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState("");
-  const [selectedSession, setSelectedSession] = useState("");
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const [viewDay, setViewDay] = useState(todayKey());
   const [asistencia, setAsistencia] = useState([]);
   const [error, setError] = useState("");
 
@@ -94,6 +100,15 @@ export default function Asistencia() {
   const [scanResult, setScanResult] = useState(null);
   const scanInputRef = useRef(null);
   const resultTimeout = useRef(null);
+  const creatingToday = useRef(null); // in-flight creation of today's row, so fast scans don't duplicate it
+
+  const today = todayKey();
+  const event = events.find((e) => e.id === selectedEvent) ?? null;
+  const jornadas = useMemo(() => groupJornadas(sessions), [sessions]);
+  const jornada = jornadas.find((j) => j.label === selectedLabel) ?? null;
+  const todaySession = sessionForDay(jornada, today);
+  const todayInEvent = event ? eventDays(event).includes(today) : true;
+  const sessionIdsKey = (jornada?.sessions ?? []).map((s) => s.id).join(",");
 
   useEffect(() => {
     (async () => {
@@ -111,23 +126,44 @@ export default function Asistencia() {
   }, []);
 
   useEffect(() => {
-    if (!selectedEvent) { setSessions([]); setSelectedSession(""); return; }
+    setViewDay(todayKey());
+    if (!selectedEvent) { setSessions([]); setSelectedLabel(""); return; }
     (async () => {
       try {
         const sessionData = await api.listEventSessions(selectedEvent);
         setSessions(sessionData);
-        setSelectedSession(sessionData[0]?.id ?? "");
-      } catch (err) { setError(err.message || "No se pudieron cargar sesiones"); }
+        setSelectedLabel(pickDefaultJornada(groupJornadas(sessionData)));
+      } catch (err) { setError(err.message || "No se pudieron cargar las jornadas"); }
     })();
   }, [selectedEvent]);
 
+  const loadAttendance = useCallback(async (ids) => {
+    try { setAsistencia(await api.listAttendanceBySessions(ids)); }
+    catch (err) { setError(err.message || "No se pudo cargar asistencia"); }
+  }, []);
+
   useEffect(() => {
-    if (!selectedSession) { setAsistencia([]); return; }
-    (async () => {
-      try { setAsistencia(await api.listAttendanceBySession(selectedSession)); }
-      catch (err) { setError(err.message || "No se pudo cargar asistencia"); }
-    })();
-  }, [selectedSession]);
+    if (!sessionIdsKey) { setAsistencia([]); return; }
+    loadAttendance(sessionIdsKey.split(","));
+  }, [sessionIdsKey, loadAttendance]);
+
+  /** Row of the selected jornada for today; created on first use (days added later, or outside the generated range). */
+  const ensureTodaySession = useCallback(async () => {
+    if (!jornada || !selectedEvent) throw new Error("Selecciona una jornada.");
+    const existing = sessionForDay(jornada, today);
+    if (existing) return existing.id;
+    creatingToday.current ??= api
+      .createEventSession(selectedEvent, { label: jornada.label, starts_at: localToIso(today, jornada.start), ends_at: localToIso(today, jornada.end) })
+      .then((created) => { setSessions((prev) => [...prev, created]); return created.id; })
+      .finally(() => { creatingToday.current = null; });
+    return creatingToday.current;
+  }, [jornada, selectedEvent, today]);
+
+  const reloadAttendance = (extraId) => {
+    const ids = new Set((jornada?.sessions ?? []).map((s) => s.id));
+    if (extraId) ids.add(extraId);
+    return loadAttendance([...ids]);
+  };
 
   const normalizedPastores = useMemo(() =>
     pastores.map((p) => ({
@@ -147,10 +183,19 @@ export default function Asistencia() {
     );
   }, [filterName, filterChurch, normalizedPastores]);
 
+  // Duplicates are per day: the same pastor can attend Jornada AM every day
   const alreadyCheckedIn = useMemo(() =>
-    new Set(asistencia.map((a) => a.pastors?.id).filter(Boolean)),
+    new Set(asistencia.filter((a) => todaySession && a.event_session_id === todaySession.id).map((a) => a.pastors?.id).filter(Boolean)),
+    [asistencia, todaySession]
+  );
+
+  // Table: filtered by the date the attendance was marked
+  const daysWithRecords = useMemo(() =>
+    [...new Set(asistencia.map((a) => localDateKey(a.checked_in_at)))].sort().reverse(),
     [asistencia]
   );
+  const visibleAsistencia = viewDay === ALL_DAYS ? asistencia : asistencia.filter((a) => localDateKey(a.checked_in_at) === viewDay);
+  const todayCount = asistencia.filter((a) => localDateKey(a.checked_in_at) === today).length;
 
   const showScanResult = (type, message) => {
     setScanResult({ type, message });
@@ -159,8 +204,8 @@ export default function Asistencia() {
   };
 
   const processScan = useCallback(async (code) => {
-    if (!selectedSession) {
-      showScanResult("error", "Selecciona una sesión antes de escanear.");
+    if (!jornada) {
+      showScanResult("error", "Selecciona una jornada antes de escanear.");
       return;
     }
     // Match by RUT (document_number) keeping only digits and the K verifier.
@@ -176,25 +221,26 @@ export default function Asistencia() {
     }
 
     if (alreadyCheckedIn.has(pastor.id)) {
-      showScanResult("error", `${pastor.nombre} ya tiene asistencia registrada.`);
+      showScanResult("error", `${pastor.nombre} ya tiene asistencia registrada hoy en ${jornada.label}.`);
       setScanInput("");
       return;
     }
 
     try {
+      const sessionId = await ensureTodaySession();
       await api.checkinAttendance({
-        event_session_id: selectedSession,
+        event_session_id: sessionId,
         pastor_id: pastor.id,
         checkin_method: "barcode",
       });
-      setAsistencia(await api.listAttendanceBySession(selectedSession));
+      await reloadAttendance(sessionId);
       showScanResult("success", `✓ Asistencia registrada: ${pastor.nombre} — ${pastor.iglesia || "sin iglesia"}`);
     } catch (err) {
       showScanResult("error", err.message || "Error al registrar asistencia.");
     }
     setScanInput("");
     scanInputRef.current?.focus();
-  }, [selectedSession, normalizedPastores, alreadyCheckedIn]);
+  }, [jornada, normalizedPastores, alreadyCheckedIn, ensureTodaySession]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Global keyboard capture for physical scanners
   useBarcodeScanner({ enabled: scannerActive, onScan: processScan, ignoreRef: scanInputRef });
@@ -209,25 +255,29 @@ export default function Asistencia() {
   };
 
   const handleSaveSelection = async () => {
-    if (!selectedSession || selectedPastorIds.length === 0) return;
+    if (!jornada || selectedPastorIds.length === 0) return;
     try {
+      const sessionId = await ensureTodaySession();
       await Promise.all(
         selectedPastorIds.map((pastorId) =>
-          api.checkinAttendance({ event_session_id: selectedSession, pastor_id: pastorId, checkin_method: "manual" })
+          api.checkinAttendance({ event_session_id: sessionId, pastor_id: pastorId, checkin_method: "manual" })
         )
       );
-      setAsistencia(await api.listAttendanceBySession(selectedSession));
+      await reloadAttendance(sessionId);
       setIsSelecting(false);
       setSelectedPastorIds([]);
+      setViewDay(today);
       setError("");
     } catch (err) { setError(err.message || "No se pudo registrar asistencia"); }
   };
+
+  const noJornadas = Boolean(selectedEvent) && jornadas.length === 0;
 
   return (
     <div className="space-y-5">
       <div>
         <h2 className="view-title">Control de Asistencia</h2>
-        <p className="mt-0.5 text-sm text-slate-500">Selecciona un evento y sesión para gestionar la asistencia</p>
+        <p className="mt-0.5 text-sm text-slate-500">Selecciona el evento y la jornada. La asistencia se registra con la fecha y hora en que se marca.</p>
       </div>
 
       {error && <div className="alert-error">{error}</div>}
@@ -243,28 +293,36 @@ export default function Asistencia() {
             </select>
           </label>
           <label className="field-label">
-            Sesión
-            <select className="field-input" value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)} disabled={!selectedEvent}>
-              <option value="">Seleccionar sesión...</option>
-              {sessions.map((s) => <option key={s.id} value={s.id}>{sessionOptionLabel(s)}</option>)}
+            Jornada
+            <select className="field-input" value={selectedLabel} onChange={(e) => setSelectedLabel(e.target.value)} disabled={!selectedEvent || noJornadas}>
+              <option value="">{noJornadas ? "Este evento no tiene jornadas" : "Seleccionar jornada..."}</option>
+              {jornadas.map((j) => <option key={j.label} value={j.label}>{j.label} ({j.start}–{j.end})</option>)}
             </select>
           </label>
         </div>
 
+        {noJornadas && (
+          <p className="text-sm text-amber-700 mb-3">Este evento no tiene jornadas. Agrégalas en Eventos → columna Jornadas.</p>
+        )}
+        {jornada && !todayInEvent && (
+          <p className="text-sm text-amber-700 mb-3">Hoy ({formatDayKey(today)}) no está dentro de las fechas del evento; la asistencia se registrará igual con la fecha de hoy.</p>
+        )}
+
         {canEdit && (
-          <div className="flex items-center gap-3">
-            <button className="btn-primary" onClick={() => { setIsSelecting(true); setScannerActive(false); setSelectedPastorIds([]); setFilterName(""); setFilterChurch(""); }} disabled={!selectedSession}>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="btn-primary" onClick={() => { setIsSelecting(true); setScannerActive(false); setSelectedPastorIds([]); setFilterName(""); setFilterChurch(""); }} disabled={!jornada}>
               <ClipboardCheck size={16} />
               Registro manual
             </button>
             <button
               className={`btn-primary gap-2 ${scannerActive ? "bg-emerald-600 hover:bg-emerald-700" : ""}`}
               onClick={() => { setScannerActive((v) => !v); setIsSelecting(false); setScanResult(null); }}
-              disabled={!selectedSession}
+              disabled={!jornada}
             >
               <ScanBarcode size={16} />
               {scannerActive ? "Escáner activo" : "Escanear código"}
             </button>
+            {jornada && <span className="text-xs text-slate-500">Se registra para hoy, {formatDayKey(today)}</span>}
           </div>
         )}
       </div>
@@ -309,7 +367,7 @@ export default function Asistencia() {
           </div>
 
           <p className="text-xs text-slate-400">
-            {asistencia.length} pastor{asistencia.length !== 1 ? "es" : ""} registrado{asistencia.length !== 1 ? "s" : ""} en esta sesión
+            {todayCount} pastor{todayCount !== 1 ? "es" : ""} registrado{todayCount !== 1 ? "s" : ""} hoy en {jornada?.label}
           </p>
         </div>
       )}
@@ -319,7 +377,7 @@ export default function Asistencia() {
         <div className="card space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-slate-900">
-              Registro manual
+              Registro manual · {jornada?.label} · hoy
               {selectedPastorIds.length > 0 && (
                 <span className="ml-2 badge-info">{selectedPastorIds.length} seleccionado{selectedPastorIds.length !== 1 ? "s" : ""}</span>
               )}
@@ -344,7 +402,7 @@ export default function Asistencia() {
                   <th style={{ width: 44 }}>
                     <input type="checkbox"
                       checked={filteredPastores.length > 0 && filteredPastores.every((p) => selectedPastorIds.includes(p.id))}
-                      onChange={(e) => setSelectedPastorIds(e.target.checked ? filteredPastores.map((p) => p.id) : [])}
+                      onChange={(e) => setSelectedPastorIds(e.target.checked ? filteredPastores.filter((p) => !alreadyCheckedIn.has(p.id)).map((p) => p.id) : [])}
                       className="rounded border-slate-300 accent-brand-600"
                     />
                   </th>
@@ -361,7 +419,7 @@ export default function Asistencia() {
                     </td>
                     <td className="font-medium text-slate-900">
                       {p.nombre}
-                      {alreadyCheckedIn.has(p.id) && <span className="ml-2 badge-success text-xs">Ya registrado</span>}
+                      {alreadyCheckedIn.has(p.id) && <span className="ml-2 badge-success text-xs">Ya registrado hoy</span>}
                     </td>
                     <td className="text-slate-500">{p.iglesia || "—"}</td>
                   </tr>
@@ -381,6 +439,21 @@ export default function Asistencia() {
       )}
 
       {/* Attendance table */}
+      {jornada && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">
+            <span className="font-semibold text-slate-900">{visibleAsistencia.length}</span> registro{visibleAsistencia.length !== 1 ? "s" : ""} en {jornada.label}
+          </p>
+          <label className="flex items-center gap-2 text-sm text-slate-500">
+            Fecha de asistencia
+            <select className="field-input !w-auto py-1.5" value={viewDay} onChange={(e) => setViewDay(e.target.value)}>
+              <option value={today}>Hoy ({formatDayKey(today)})</option>
+              <option value={ALL_DAYS}>Todos los días</option>
+              {daysWithRecords.filter((d) => d !== today).map((d) => <option key={d} value={d}>{formatDayKey(d)}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
       <div className="table-wrapper">
         <table className="table">
           <thead>
@@ -393,7 +466,7 @@ export default function Asistencia() {
             </tr>
           </thead>
           <tbody>
-            {asistencia.map((a) => (
+            {visibleAsistencia.map((a) => (
               <tr key={a.id}>
                 <td className="font-medium text-slate-900">{a.pastors?.full_name ?? "—"}</td>
                 <td className="text-slate-500">{a.pastors?.churches?.name ?? "—"}</td>
@@ -406,10 +479,13 @@ export default function Asistencia() {
                 <td><span className="badge-success">Presente</span></td>
               </tr>
             ))}
-            {asistencia.length === 0 && (
+            {visibleAsistencia.length === 0 && (
               <tr>
                 <td colSpan={5} className="py-12 text-center text-sm text-slate-400">
-                  {selectedSession ? "No hay asistencia registrada para esta sesión." : "Selecciona un evento y sesión para ver la asistencia."}
+                  {!jornada
+                    ? "Selecciona un evento y una jornada para ver la asistencia."
+                    : viewDay === ALL_DAYS ? `Todavía no hay asistencia en ${jornada.label}.`
+                    : `No hay asistencia en ${jornada.label} ${viewDay === today ? "hoy" : `el ${formatDayKey(viewDay)}`}.`}
                 </td>
               </tr>
             )}

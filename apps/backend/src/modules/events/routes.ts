@@ -35,19 +35,24 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
     const { data, error } = await app.supabaseAdmin
       .schema("events")
       .from("events")
-      .select("id, title, starts_at, ends_at, status, event_sessions(count)")
+      .select("id, title, starts_at, ends_at, status, event_sessions(label)")
       .order("starts_at", { ascending: false });
 
     if (error) return reply.badRequest(error.message);
     const now = Date.parse(nowIso);
-    return (data ?? []).map(({ event_sessions, ...event }) => ({
-      ...event,
-      status:
-        (event.status === "planned" || event.status === "active") && event.ends_at && Date.parse(event.ends_at) < now
-          ? "completed"
-          : event.status,
-      sessions_count: (event_sessions as { count: number }[] | null)?.[0]?.count ?? 0
-    }));
+    return (data ?? []).map(({ event_sessions, ...event }) => {
+      const rows = (event_sessions as { label: string }[] | null) ?? [];
+      return {
+        ...event,
+        status:
+          (event.status === "planned" || event.status === "active") && event.ends_at && Date.parse(event.ends_at) < now
+            ? "completed"
+            : event.status,
+        sessions_count: rows.length,
+        // A jornada (AM, PM…) is one row per day with the same label
+        jornadas_count: new Set(rows.map((r) => r.label.trim())).size
+      };
+    });
   });
 
   app.post("/", async (request, reply) => {

@@ -9,13 +9,22 @@ const markAttendanceSchema = z.object({
 
 export const attendanceRoutes: FastifyPluginAsync = async (app) => {
   app.get("/", async (request, reply) => {
-    const query = z.object({ event_session_id: z.string().min(1) }).parse(request.query);
+    // One session, or several (a jornada spans one session row per day)
+    const query = z.object({
+      event_session_id: z.string().min(1).optional(),
+      event_session_ids: z.string().min(1).optional()
+    }).parse(request.query);
+    const sessionIds = [
+      ...(query.event_session_id ? [query.event_session_id] : []),
+      ...(query.event_session_ids ?? "").split(",").map((id) => id.trim()).filter(Boolean)
+    ];
+    if (sessionIds.length === 0) return reply.badRequest("event_session_id o event_session_ids es requerido");
 
     const { data: records, error } = await app.supabaseAdmin
       .schema("events")
       .from("attendance_records")
-      .select("id, checked_in_at, checkin_method, pastor_id")
-      .eq("event_session_id", query.event_session_id)
+      .select("id, checked_in_at, checkin_method, pastor_id, event_session_id")
+      .in("event_session_id", sessionIds)
       .order("checked_in_at", { ascending: false });
 
     if (error) return reply.badRequest(error.message);
@@ -33,6 +42,7 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     const pastorsById = new Map((pastors ?? []).map((pastor) => [pastor.id, pastor]));
     return records.map((record) => ({
       id: record.id,
+      event_session_id: record.event_session_id,
       checked_in_at: record.checked_in_at,
       checkin_method: record.checkin_method,
       pastors: pastorsById.get(record.pastor_id) ?? null
@@ -71,6 +81,8 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       .select("*")
       .single();
 
+    // 23505 = unique (event_session_id, pastor_id): each session row is one jornada on one day
+    if (error?.code === "23505") return reply.badRequest("Este pastor ya tiene asistencia registrada hoy en esta jornada");
     if (error) return reply.badRequest(error.message);
     return reply.code(201).send(data);
   });

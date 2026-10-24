@@ -301,7 +301,7 @@ export default function Reportes() {
           columns: [
             { label: "Evento",           value: () => selectedEvent.title },
             { label: "Fecha sesión",     value: (r) => formatSheetDate(r.starts_at) },
-            { key: "session_label",      label: "Sesión" },
+            { key: "session_label",      label: "Jornada" },
             { key: "attendance_count",   label: "Asistentes" },
           ],
         },
@@ -309,7 +309,7 @@ export default function Reportes() {
           name: "Detalle",
           rows: detail,
           columns: [
-            { key: "session_label", label: "Sesión" },
+            { key: "session_label", label: "Jornada" },
             { label: "Pastor",      value: (r) => r.pastors?.full_name ?? "" },
             { label: "RUT",         value: (r) => r.pastors?.document_number ?? "" },
             { label: "Iglesia",     value: (r) => r.pastors?.churches?.name ?? "" },
@@ -439,7 +439,7 @@ export default function Reportes() {
             </div>
             <div className="h-8 w-px bg-emerald-200" />
             <div>
-              <p className="text-[10px] font-semibold text-emerald-700/70 uppercase tracking-wider">Sesiones</p>
+              <p className="text-[10px] font-semibold text-emerald-700/70 uppercase tracking-wider">Jornadas por día</p>
               <p className="text-xl font-bold text-emerald-700 tabular-nums">{attendance.length}</p>
             </div>
           </div>
@@ -474,7 +474,7 @@ export default function Reportes() {
               <thead>
                 <tr>
                   <th>Fecha</th>
-                  <th>Sesión</th>
+                  <th>Jornada</th>
                   <th>Asistentes</th>
                   <th>% del total</th>
                 </tr>

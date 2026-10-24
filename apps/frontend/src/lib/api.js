@@ -94,6 +94,11 @@ export const api = {
     apiFetch("/attendance/checkin", { method: "POST", body: JSON.stringify(payload) }),
   listAttendanceBySession: (eventSessionId) =>
     apiFetch(`/attendance?event_session_id=${eventSessionId}`),
+  // All days of a jornada at once (one session row per day)
+  listAttendanceBySessions: (eventSessionIds) =>
+    eventSessionIds.length === 0
+      ? Promise.resolve([])
+      : apiFetch(`/attendance?event_session_ids=${eventSessionIds.join(",")}`),
 
   getAttendanceSummaryByEvent: (eventId) =>
     apiFetch(`/reports/attendance-summary?event_id=${eventId}`)

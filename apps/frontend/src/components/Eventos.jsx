@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Calendar, X, Clock, ChevronDown, ChevronUp, Trash2, Sparkles } from "lucide-react";
+import { Plus, Pencil, Calendar, X, Clock, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { api } from "../lib/api";
 import { useEvents, invalidateEvents } from "../lib/hooks";
 import { useToast } from "../context/ToastContext";
 import ConfirmDialog from "./ConfirmDialog";
 import DatePicker from "./DatePicker";
 import { useAuth } from "../context/AuthContext";
+import { DEFAULT_JORNADAS, eventDays, groupJornadas, localDateKey, localToIso, missingDayRows } from "../lib/jornadas";
 
 const ESTADOS = ["planned", "active", "completed", "cancelled"];
 
@@ -37,54 +38,26 @@ function formatDate(value) {
 
 const EMPTY_FORM = { title: "", starts_at: "", ends_at: "", status: "planned" };
 
-/* ── Sessions ("jornadas") ─────────────────────────────────────────── */
-const SESSION_PRESETS = {
-  AM: { label: "Jornada AM", start: "09:00", end: "13:00" },
-  PM: { label: "Jornada PM", start: "15:00", end: "19:00" },
-};
-const pad2 = (n) => String(n).padStart(2, "0");
+/* ── Jornadas ──────────────────────────────────────────────────────────
+   A jornada is defined once and applies to every day of the event (stored as one
+   session row per day, see lib/jornadas). Attendance carries the date it was marked. */
+const EMPTY_JORNADA = { label: "", start: "", end: "" };
 
-// Session times are entered and shown in local time; the API stores them in UTC
-const localToIso = (date, time) => new Date(`${date}T${time}:00`).toISOString();
-function toLocalDateInput(value) {
-  const d = new Date(value);
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-function toTimeInput(value) {
-  const d = new Date(value);
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-function formatTime(value) {
-  return new Date(value).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-function formatSessionDate(value) {
-  return new Date(value).toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" });
-}
-
-/** Calendar days (YYYY-MM-DD) covered by the event, capped to avoid runaway ranges. */
-function eventDays(event) {
-  const days = [];
-  const start = new Date(event.starts_at), end = new Date(event.ends_at);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return days;
-  for (let t = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()); t <= end.getTime() && days.length < 60; t += 86_400_000) {
-    days.push(new Date(t).toISOString().slice(0, 10));
-  }
-  return days;
-}
-
-function emptySessionForm(event) {
+/** Creates the default AM/PM jornadas on every day of the event. */
+export async function createDefaultJornadas(event) {
   const days = eventDays(event);
-  return { label: SESSION_PRESETS.AM.label, date: days[0] ?? toDateInput(event.starts_at), start: SESSION_PRESETS.AM.start, end: SESSION_PRESETS.AM.end };
+  const rows = DEFAULT_JORNADAS.flatMap((j) => missingDayRows(j.label, j.start, j.end, days));
+  await Promise.all(rows.map((r) => api.createEventSession(event.id, r)));
+  return rows.length;
 }
 
-function SessionsPanel({ event, canEdit, toast, onChanged }) {
-  const [sessions, setSessions] = useState(null); // null = loading
-  const [error, setError]       = useState("");
-  const [busy, setBusy]         = useState(false);
-  const [form, setForm]         = useState(() => emptySessionForm(event));
-  const [editingId, setEditingId] = useState(null);
-  const [toDelete, setToDelete] = useState(null);
-  const [genPlan, setGenPlan]   = useState(null); // { toCreate: [...] }
+function JornadasPanel({ event, canEdit, toast, onChanged }) {
+  const [sessions, setSessions]   = useState(null); // null = loading
+  const [error, setError]         = useState("");
+  const [busy, setBusy]           = useState(false);
+  const [form, setForm]           = useState(EMPTY_JORNADA);
+  const [editingLabel, setEditingLabel] = useState(null); // null = adding
+  const [toDelete, setToDelete]   = useState(null);
 
   const load = async () => {
     try { setSessions(await api.listEventSessions(event.id)); setError(""); }
@@ -92,97 +65,81 @@ function SessionsPanel({ event, canEdit, toast, onChanged }) {
   };
   useEffect(() => { load(); }, [event.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const jornadas = groupJornadas(sessions ?? []);
+  const days = eventDays(event);
   const changed = async (message) => { await load(); onChanged(); if (message) toast(message); };
 
-  const applyPreset = (key) => {
-    const p = SESSION_PRESETS[key];
-    setForm((f) => ({ ...f, label: p.label, start: p.start, end: p.end }));
-  };
-
-  const startEdit = (s) => {
-    setEditingId(s.id);
-    setForm({ label: s.label, date: toLocalDateInput(s.starts_at), start: toTimeInput(s.starts_at), end: toTimeInput(s.ends_at) });
-  };
-  const cancelEdit = () => { setEditingId(null); setForm(emptySessionForm(event)); };
+  const startAdd = (preset) => { setEditingLabel(null); setForm(preset ? { ...preset } : EMPTY_JORNADA); setError(""); };
+  const startEdit = (j) => { setEditingLabel(j.label); setForm({ label: j.label, start: j.start, end: j.end }); setError(""); };
+  const cancelForm = () => { setEditingLabel(null); setForm(EMPTY_JORNADA); };
+  const formOpen = editingLabel !== null || form.label || form.start || form.end;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.label.trim() || !form.date || !form.start || !form.end) return;
+    const label = form.label.trim();
+    if (!label || !form.start || !form.end) return;
     if (form.end <= form.start) { setError("La hora de término debe ser posterior a la de inicio."); return; }
-    const payload = { label: form.label.trim(), starts_at: localToIso(form.date, form.start), ends_at: localToIso(form.date, form.end) };
-    setBusy(true);
-    try {
-      if (editingId) await api.updateEventSession(event.id, editingId, payload);
-      else           await api.createEventSession(event.id, payload);
-      await changed(editingId ? "Jornada actualizada" : "Jornada creada");
-      cancelEdit();
-    } catch (err) { setError(err.message || "No se pudo guardar la jornada"); }
-    finally { setBusy(false); }
-  };
-
-  const handleDelete = async (s) => {
-    setBusy(true);
-    try { await api.deleteEventSession(event.id, s.id); await changed("Jornada eliminada"); }
-    catch (err) { setError(err.message || "No se pudo eliminar la jornada"); }
-    finally { setBusy(false); }
-  };
-
-  // AM + PM for every day of the event, skipping the ones that already exist
-  const planGenerate = () => {
-    const existing = new Set((sessions ?? []).map((s) => `${toLocalDateInput(s.starts_at)}|${s.label}`));
-    const toCreate = [];
-    for (const day of eventDays(event)) {
-      for (const p of Object.values(SESSION_PRESETS)) {
-        if (!existing.has(`${day}|${p.label}`)) toCreate.push({ label: p.label, starts_at: localToIso(day, p.start), ends_at: localToIso(day, p.end) });
-      }
+    if (jornadas.some((j) => j.label.toLowerCase() === label.toLowerCase() && j.label !== editingLabel)) {
+      setError(`Ya existe una jornada llamada "${label}".`); return;
     }
-    if (toCreate.length === 0) { toast("Todos los días ya tienen sus jornadas AM y PM"); return; }
-    setGenPlan({ toCreate });
-  };
-  const runGenerate = async () => {
-    const plan = genPlan; setGenPlan(null); setBusy(true);
+    setBusy(true);
     try {
-      for (const s of plan.toCreate) await api.createEventSession(event.id, s);
-      await changed(`${plan.toCreate.length} jornada${plan.toCreate.length !== 1 ? "s" : ""} creada${plan.toCreate.length !== 1 ? "s" : ""}`);
-    } catch (err) { setError(err.message || "No se pudieron crear las jornadas"); await load(); }
+      const current = jornadas.find((j) => j.label === editingLabel);
+      // Same name and hours on every existing day, then add the days that are missing
+      await Promise.all((current?.sessions ?? []).map((sRow) => {
+        const day = localDateKey(sRow.starts_at);
+        return api.updateEventSession(event.id, sRow.id, { label, starts_at: localToIso(day, form.start), ends_at: localToIso(day, form.end) });
+      }));
+      await Promise.all(missingDayRows(label, form.start, form.end, days, current?.sessions).map((r) => api.createEventSession(event.id, r)));
+      await changed(current ? "Jornada actualizada" : "Jornada agregada");
+      cancelForm();
+    } catch (err) { setError(err.message || "No se pudo guardar la jornada"); await load(); }
     finally { setBusy(false); }
   };
 
-  const days = eventDays(event);
+  const handleDelete = async (j) => {
+    setBusy(true);
+    try {
+      await Promise.all(j.sessions.map((sRow) => api.deleteEventSession(event.id, sRow.id)));
+      await changed("Jornada eliminada");
+      if (editingLabel === j.label) cancelForm();
+    } catch (err) { setError(err.message || "No se pudo eliminar la jornada"); await load(); }
+    finally { setBusy(false); }
+  };
+
+  const missingPresets = DEFAULT_JORNADAS.filter((p) => !jornadas.some((j) => j.label.toLowerCase() === p.label.toLowerCase()));
 
   return (
     <div className="rounded-xl border border-brand-100 bg-brand-50/40 px-4 py-4 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
         <h4 className="flex items-center gap-2 text-sm font-semibold text-brand-800">
           <Clock size={15} className="text-brand-500" /> Jornadas de {event.title}
         </h4>
-        {canEdit && (
-          <button type="button" className="btn-secondary btn-sm gap-1.5" onClick={planGenerate} disabled={busy || sessions === null}>
-            <Sparkles size={13} /> Generar AM y PM para cada día ({days.length} día{days.length !== 1 ? "s" : ""})
-          </button>
-        )}
+        <p className="text-xs text-slate-500 mt-1">
+          Cada jornada se aplica a todos los días del evento ({days.length} día{days.length !== 1 ? "s" : ""}).
+          La asistencia queda registrada con la fecha en que se marca.
+        </p>
       </div>
 
       {error && <div className="alert-error">{error}</div>}
 
       {sessions === null ? (
         <div className="h-10 rounded-lg bg-slate-200/70 animate-pulse" />
-      ) : sessions.length === 0 ? (
+      ) : jornadas.length === 0 ? (
         <p className="text-sm text-slate-500">
           Este evento no tiene jornadas todavía. Sin jornadas no se puede registrar asistencia.
-          {canEdit && " Crea una abajo o genera las de todos los días."}
         </p>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white divide-y divide-slate-100">
-          {sessions.map((s) => (
-            <div key={s.id} className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 text-sm ${editingId === s.id ? "bg-brand-50" : ""}`}>
-              <span className="font-medium text-slate-900 min-w-[120px]">{s.label}</span>
-              <span className="text-slate-500 capitalize">{formatSessionDate(s.starts_at)}</span>
-              <span className="text-slate-500 tabular-nums">{formatTime(s.starts_at)} – {formatTime(s.ends_at)}</span>
+          {jornadas.map((j) => (
+            <div key={j.label} className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 text-sm ${editingLabel === j.label ? "bg-brand-50" : ""}`}>
+              <span className="font-medium text-slate-900 min-w-[120px]">{j.label}</span>
+              <span className="text-slate-600 tabular-nums">{j.start} – {j.end}</span>
+              <span className="text-xs text-slate-400">todos los días</span>
               {canEdit && (
                 <span className="ml-auto flex items-center gap-1">
-                  <button type="button" className="btn-ghost btn-sm gap-1" onClick={() => startEdit(s)} disabled={busy}><Pencil size={12} />Editar</button>
-                  <button type="button" className="btn-ghost btn-sm gap-1 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setToDelete(s)} disabled={busy}><Trash2 size={12} />Eliminar</button>
+                  <button type="button" className="btn-ghost btn-sm gap-1" onClick={() => startEdit(j)} disabled={busy}><Pencil size={12} />Editar</button>
+                  <button type="button" className="btn-ghost btn-sm gap-1 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => setToDelete(j)} disabled={busy}><Trash2 size={12} />Eliminar</button>
                 </span>
               )}
             </div>
@@ -190,26 +147,27 @@ function SessionsPanel({ event, canEdit, toast, onChanged }) {
         </div>
       )}
 
-      {canEdit && (
+      {canEdit && !formOpen && (
+        <div className="flex flex-wrap items-center gap-2">
+          {missingPresets.map((p) => (
+            <button key={p.label} type="button" className="btn-secondary btn-sm gap-1" onClick={() => startAdd(p)} disabled={busy || sessions === null}>
+              <Plus size={13} /> {p.label} ({p.start}–{p.end})
+            </button>
+          ))}
+          <button type="button" className="btn-ghost btn-sm gap-1" onClick={() => startAdd({ label: "", start: "09:00", end: "13:00" })} disabled={busy || sessions === null}>
+            <Plus size={13} /> Otra jornada
+          </button>
+        </div>
+      )}
+
+      {canEdit && formOpen && (
         <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white px-3 py-3 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{editingId ? "Editar jornada" : "Nueva jornada"}</span>
-            <span className="text-xs text-slate-400">Atajos:</span>
-            {Object.keys(SESSION_PRESETS).map((key) => (
-              <button key={key} type="button" className="badge-info hover:bg-brand-100 cursor-pointer" onClick={() => applyPreset(key)}>
-                {key} · {SESSION_PRESETS[key].start}–{SESSION_PRESETS[key].end}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{editingLabel ? `Editar ${editingLabel}` : "Nueva jornada"}</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <label className="field-label md:col-span-2">
               Nombre
-              <input type="text" className="field-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ej: Jornada AM" required />
+              <input type="text" className="field-input" value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Ej: Jornada AM" required autoFocus />
             </label>
-            <div className="field-label">
-              Fecha
-              <DatePicker value={form.date} onChange={(v) => setForm((f) => ({ ...f, date: v }))} placeholder="Fecha..." />
-            </div>
             <label className="field-label">
               Inicio
               <input type="time" className="field-input" value={form.start} onChange={(e) => setForm((f) => ({ ...f, start: e.target.value }))} required />
@@ -220,10 +178,8 @@ function SessionsPanel({ event, canEdit, toast, onChanged }) {
             </label>
           </div>
           <div className="flex items-center justify-end gap-2">
-            {editingId && <button type="button" className="btn-secondary btn-sm" onClick={cancelEdit} disabled={busy}>Cancelar</button>}
-            <button type="submit" className="btn-primary btn-sm gap-1" disabled={busy}>
-              <Plus size={13} /> {editingId ? "Guardar cambios" : "Agregar jornada"}
-            </button>
+            <button type="button" className="btn-secondary btn-sm" onClick={cancelForm} disabled={busy}>Cancelar</button>
+            <button type="submit" className="btn-primary btn-sm" disabled={busy}>{editingLabel ? "Guardar cambios" : "Agregar jornada"}</button>
           </div>
         </form>
       )}
@@ -231,19 +187,10 @@ function SessionsPanel({ event, canEdit, toast, onChanged }) {
       <ConfirmDialog
         open={Boolean(toDelete)}
         title="Eliminar jornada"
-        message={`¿Eliminar "${toDelete?.label}" del ${toDelete ? formatSessionDate(toDelete.starts_at) : ""}? Se borrará también la asistencia registrada en esa jornada.`}
-        confirmLabel="Sí, eliminar"
+        message={`¿Eliminar "${toDelete?.label}" de todos los días del evento? Se borrará también la asistencia registrada en esa jornada.`}
+        confirmLabel="Sí, eliminar jornada"
         onCancel={() => setToDelete(null)}
-        onConfirm={() => { const s = toDelete; setToDelete(null); handleDelete(s); }}
-      />
-      <ConfirmDialog
-        open={Boolean(genPlan)}
-        title="Generar jornadas"
-        message={`Se crearán ${genPlan?.toCreate.length ?? 0} jornadas (AM 09:00–13:00 y PM 15:00–19:00) para los días del evento que aún no las tienen. Después puedes editar sus horarios.`}
-        confirmLabel="Crear jornadas"
-        danger={false}
-        onCancel={() => setGenPlan(null)}
-        onConfirm={runGenerate}
+        onConfirm={() => { const j = toDelete; setToDelete(null); handleDelete(j); }}
       />
     </div>
   );
@@ -290,8 +237,13 @@ export default function Eventos() {
     try {
       let created = null;
       if (editingId) { await api.updateEvent(editingId, payload); }
-      else           { created = await api.createEvent(payload); }
-      const msg = editingId ? "Evento actualizado correctamente" : "Evento creado. Ahora agrega sus jornadas.";
+      else {
+        created = await api.createEvent(payload);
+        // Every day of an event has jornadas: start with AM and PM (editable in the panel)
+        try { await createDefaultJornadas(created); }
+        catch { /* the event exists; jornadas can still be added from its panel */ }
+      }
+      const msg = editingId ? "Evento actualizado correctamente" : "Evento creado con Jornada AM y Jornada PM";
       invalidateEvents();
       handleCancel();
       setMutateError("");
@@ -384,7 +336,7 @@ export default function Eventos() {
                 ))
               : events.map((ev) => {
                   const expanded = expandedId === ev.id;
-                  const count = ev.sessions_count ?? 0;
+                  const count = ev.jornadas_count ?? ev.sessions_count ?? 0;
                   return [
                     <tr key={ev.id}>
                       <td>
@@ -398,7 +350,7 @@ export default function Eventos() {
                       <td><span className={STATUS_BADGE[ev.status] ?? "badge-muted"}>{STATUS_LABEL[ev.status] ?? ev.status}</span></td>
                       <td>
                         <button type="button" className="btn-ghost btn-sm gap-1.5" onClick={() => setExpandedId(expanded ? null : ev.id)}
-                          aria-expanded={expanded} title={count === 0 ? "Sin jornadas: no se puede registrar asistencia" : undefined}>
+                          aria-expanded={expanded} title={count === 0 ? "Sin jornadas: no se puede registrar asistencia" : "Ver jornadas"}>
                           <Clock size={13} />
                           <span className={count === 0 ? "badge-danger" : "badge-info"}>{count}</span>
                           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -413,7 +365,7 @@ export default function Eventos() {
                     expanded && (
                       <tr key={`${ev.id}-sessions`}>
                         <td colSpan={columns} className="!py-3">
-                          <SessionsPanel event={ev} canEdit={canEdit} toast={toast} onChanged={invalidateEvents} />
+                          <JornadasPanel event={ev} canEdit={canEdit} toast={toast} onChanged={invalidateEvents} />
                         </td>
                       </tr>
                     ),
@@ -429,7 +381,7 @@ export default function Eventos() {
       <ConfirmDialog
         open={Boolean(toDelete)}
         title="Eliminar el evento completo"
-        message={`Vas a eliminar el EVENTO "${toDelete?.title}" entero, con sus ${toDelete?.sessions_count ?? 0} jornada${(toDelete?.sessions_count ?? 0) !== 1 ? "s" : ""} y toda la asistencia registrada. Esta acción no se puede deshacer. Si solo quieres borrar una jornada, cancela y usa "Eliminar" dentro del panel Jornadas.`}
+        message={`Vas a eliminar el EVENTO "${toDelete?.title}" entero, con sus ${toDelete?.jornadas_count ?? 0} jornada${(toDelete?.jornadas_count ?? 0) !== 1 ? "s" : ""} y toda la asistencia registrada. Esta acción no se puede deshacer. Si solo quieres borrar una jornada, cancela y usa "Eliminar" dentro del panel Jornadas.`}
         confirmLabel="Sí, eliminar el evento"
         onCancel={() => setToDelete(null)}
         onConfirm={() => { handleDelete(toDelete.id); setToDelete(null); handleCancel(); }}
