@@ -35,16 +35,19 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
     const { data, error } = await app.supabaseAdmin
       .schema("events")
       .from("events")
-      .select("id, title, starts_at, ends_at, status")
+      .select("id, title, starts_at, ends_at, status, event_sessions(count)")
       .order("starts_at", { ascending: false });
 
     if (error) return reply.badRequest(error.message);
     const now = Date.parse(nowIso);
-    return (data ?? []).map((event) =>
-      (event.status === "planned" || event.status === "active") && event.ends_at && Date.parse(event.ends_at) < now
-        ? { ...event, status: "completed" }
-        : event
-    );
+    return (data ?? []).map(({ event_sessions, ...event }) => ({
+      ...event,
+      status:
+        (event.status === "planned" || event.status === "active") && event.ends_at && Date.parse(event.ends_at) < now
+          ? "completed"
+          : event.status,
+      sessions_count: (event_sessions as { count: number }[] | null)?.[0]?.count ?? 0
+    }));
   });
 
   app.post("/", async (request, reply) => {
@@ -116,6 +119,44 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
     if (error) return reply.badRequest(error.message);
     return reply.code(201).send(data);
+  });
+
+  app.patch("/:eventId/sessions/:sessionId", async (request, reply) => {
+    const params = z.object({ eventId: z.string().min(1), sessionId: z.string().min(1) }).parse(request.params);
+    const payload = createSessionSchema.partial().parse(request.body);
+
+    const { data, error } = await app.supabaseAdmin
+      .schema("events")
+      .from("event_sessions")
+      .update(payload)
+      .eq("id", params.sessionId)
+      .eq("event_id", params.eventId)
+      .select("*")
+      .maybeSingle();
+
+    if (error) return reply.badRequest(error.message);
+    if (!data) return reply.notFound("Session not found");
+    return data;
+  });
+
+  app.delete("/:eventId/sessions/:sessionId", async (request, reply) => {
+    const params = z.object({ eventId: z.string().min(1), sessionId: z.string().min(1) }).parse(request.params);
+
+    const { data: session, error: findError } = await app.supabaseAdmin
+      .schema("events")
+      .from("event_sessions")
+      .select("id")
+      .eq("id", params.sessionId)
+      .eq("event_id", params.eventId)
+      .maybeSingle();
+    if (findError) return reply.badRequest(findError.message);
+    if (!session) return reply.notFound("Session not found");
+
+    // Attendance of the session goes with it
+    await app.supabaseAdmin.schema("events").from("attendance_records").delete().eq("event_session_id", params.sessionId);
+    const { error } = await app.supabaseAdmin.schema("events").from("event_sessions").delete().eq("id", params.sessionId);
+    if (error) return reply.badRequest(error.message);
+    return reply.code(204).send();
   });
 
   app.get("/:eventId/sessions", async (request, reply) => {

@@ -83,6 +83,12 @@ export const api = {
   deleteEvent: (id) =>
     apiFetch(`/events/${id}`, { method: "DELETE" }),
   listEventSessions: (eventId) => apiFetch(`/events/${eventId}/sessions`),
+  createEventSession: (eventId, payload) =>
+    apiFetch(`/events/${eventId}/sessions`, { method: "POST", body: JSON.stringify(payload) }),
+  updateEventSession: (eventId, sessionId, payload) =>
+    apiFetch(`/events/${eventId}/sessions/${sessionId}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteEventSession: (eventId, sessionId) =>
+    apiFetch(`/events/${eventId}/sessions/${sessionId}`, { method: "DELETE" }),
 
   checkinAttendance: (payload) =>
     apiFetch("/attendance/checkin", { method: "POST", body: JSON.stringify(payload) }),

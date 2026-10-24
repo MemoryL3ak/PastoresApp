@@ -40,6 +40,13 @@ function useBarcodeScanner({ enabled, onScan, ignoreRef }) {
   }, [enabled, onScan, ignoreRef]);
 }
 
+// "Jornada AM · 24 oct" — multi-day events repeat the same labels, so the date tells them apart
+function sessionOptionLabel(session) {
+  if (!session.starts_at) return session.label;
+  const date = new Date(session.starts_at).toLocaleDateString("es-CL", { day: "numeric", month: "short" });
+  return `${session.label} · ${date}`;
+}
+
 function formatCheckin(dateIso) {
   if (!dateIso) return "—";
   const d = new Date(dateIso);
@@ -239,7 +246,7 @@ export default function Asistencia() {
             Sesión
             <select className="field-input" value={selectedSession} onChange={(e) => setSelectedSession(e.target.value)} disabled={!selectedEvent}>
               <option value="">Seleccionar sesión...</option>
-              {sessions.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              {sessions.map((s) => <option key={s.id} value={s.id}>{sessionOptionLabel(s)}</option>)}
             </select>
           </label>
         </div>
